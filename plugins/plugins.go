@@ -14,40 +14,53 @@ import (
 
 // Manager ...
 type Manager struct {
+	pluginsConstructor       func(*Plugin) IPlugin
 	fullPluginsPath          string
 	pluginsPath              string
 	updatePluginsIntervalSec int
-	plugins                  map[string]*plugin
+	plugins                  map[string]*Plugin
 
 	ready sync.Mutex
 }
 
-type pluginer interface {
+// Plugin ...
+type Plugin struct {
+	pluginsManager       *Manager
+	RelativeName         string
+	lastModificationDate time.Time
+
+	actions IPlugin
+
+	ready sync.Mutex
+}
+
+// IPluginsConstructor ...
+type IPluginsConstructor interface {
+	Constructor() *Plugin
+}
+
+// IPlugin ...
+type IPlugin interface {
 	OnLoad()
 	OnUpdate()
 	OnUnload()
 }
 
-type plugin struct {
-	pluginer
-	pluginsManager       *Manager
-	relativeName         string
-	lastModificationDate time.Time
-
-	ready sync.Mutex
-}
-
-func (pluginsManager *Manager) newPlugin(relativeName string, lastModificationDate time.Time) *plugin {
-	return &plugin{
+func (pluginsManager *Manager) newPlugin(relativeName string, lastModificationDate time.Time) *Plugin {
+	plugin := &Plugin{
 		pluginsManager:       pluginsManager,
-		relativeName:         relativeName,
+		RelativeName:         relativeName,
 		lastModificationDate: lastModificationDate,
 	}
+
+	plugin.actions = pluginsManager.pluginsConstructor(plugin)
+
+	return plugin
 }
 
 func (pluginsManager *Manager) loadOrUpdatePlugin(pluginRelativeName string, modificationTime time.Time) {
-	newPlugins := []*plugin{}
-	pluginsToUpdate := []*plugin{}
+	newPlugins := []*Plugin{}
+	pluginsToUpdate := []*Plugin{}
 
 	pluginsManager.ready.Lock()
 
@@ -72,11 +85,11 @@ func (pluginsManager *Manager) loadOrUpdatePlugin(pluginRelativeName string, mod
 	pluginsManager.ready.Unlock()
 
 	for _, plugin := range newPlugins {
-		plugin.OnLoad()
+		plugin.actions.OnLoad()
 	}
 
 	for _, plugin := range pluginsToUpdate {
-		plugin.OnUpdate()
+		plugin.actions.OnUpdate()
 	}
 
 }
@@ -91,7 +104,7 @@ func (pluginsManager *Manager) ToHTML() string {
 	pluginsManager.ready.Lock()
 
 	for _, plugin := range pluginsManager.plugins {
-		tableContent += fmt.Sprintf("<tr><td>%v</td><td>%v</td></tr>", plugin.relativeName, plugin.lastModificationDate)
+		tableContent += fmt.Sprintf("<tr><td>%v</td><td>%v</td></tr>", plugin.RelativeName, plugin.lastModificationDate)
 	}
 
 	pluginsManager.ready.Unlock()
@@ -124,12 +137,12 @@ func (pluginsManager *Manager) loadAndUpdateAllPlugins(currentFullPath string) e
 }
 
 func (pluginsManager *Manager) unloadDeletedPlugins() {
-	pluginsToUnload := []*plugin{}
+	pluginsToUnload := []*Plugin{}
 
 	pluginsManager.ready.Lock()
 
 	for _, plugin := range pluginsManager.plugins {
-		fullPluginFileName := filepath.Join(pluginsManager.fullPluginsPath, plugin.relativeName)
+		fullPluginFileName := filepath.Join(pluginsManager.fullPluginsPath, plugin.RelativeName)
 		_, err := os.Stat(fullPluginFileName)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -139,23 +152,24 @@ func (pluginsManager *Manager) unloadDeletedPlugins() {
 	}
 
 	for _, pluginToUnload := range pluginsToUnload {
-		delete(pluginsManager.plugins, pluginToUnload.relativeName)
+		delete(pluginsManager.plugins, pluginToUnload.RelativeName)
 	}
 
 	pluginsManager.ready.Unlock()
 
 	for _, pluginToUnload := range pluginsToUnload {
-		pluginToUnload.OnUnload()
+		pluginToUnload.actions.OnUnload()
 	}
 }
 
-// NewManager ...
-func NewManager(pluginsPath string, updatePluginsIntervalSec int, pluginer pluginer) (*Manager, error) {
+// NewPluginsManager ...
+func NewPluginsManager(pluginsPath string, updatePluginsIntervalSec int, pluginsConstructor func(*Plugin) IPlugin) (*Manager, error) {
 
 	pluginsManager := &Manager{
+		pluginsConstructor:       pluginsConstructor,
 		pluginsPath:              pluginsPath,
 		updatePluginsIntervalSec: updatePluginsIntervalSec,
-		plugins:                  map[string]*plugin{},
+		plugins:                  map[string]*Plugin{},
 	}
 
 	pluginsPathFull, err := filepath.Abs(pluginsManager.pluginsPath)
