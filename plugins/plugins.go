@@ -25,18 +25,13 @@ type Manager struct {
 
 // Plugin ...
 type Plugin struct {
-	pluginsManager       *Manager
+	PluginsManager       *Manager
 	RelativeName         string
 	lastModificationDate time.Time
 
 	actions IPlugin
 
 	ready sync.Mutex
-}
-
-// IPluginsConstructor ...
-type IPluginsConstructor interface {
-	Constructor() *Plugin
 }
 
 // IPlugin ...
@@ -48,7 +43,7 @@ type IPlugin interface {
 
 func (pluginsManager *Manager) newPlugin(relativeName string, lastModificationDate time.Time) *Plugin {
 	plugin := &Plugin{
-		pluginsManager:       pluginsManager,
+		PluginsManager:       pluginsManager,
 		RelativeName:         relativeName,
 		lastModificationDate: lastModificationDate,
 	}
