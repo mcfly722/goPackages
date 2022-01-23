@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/dop251/goja"
 )
@@ -38,11 +37,6 @@ func (jsEngine *JSEngine) newRuntime(name string, jsContent string) (chan *event
 				if event.kind == 0 {
 					break loop
 				}
-
-			default:
-				// loop
-				time.Sleep(100 * time.Millisecond)
-				fmt.Printf(".")
 			}
 		}
 
