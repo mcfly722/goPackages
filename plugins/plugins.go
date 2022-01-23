@@ -20,6 +20,7 @@ type Manager struct {
 	updatePluginsIntervalSec int
 	plugins                  map[string]*Plugin
 	started                  bool
+	filter                   string
 
 	ready sync.Mutex
 }
@@ -124,9 +125,11 @@ func (pluginsManager *Manager) loadAndUpdateAllPlugins(currentFullPath string) e
 		if file.IsDir() {
 			pluginsManager.loadAndUpdateAllPlugins(filepath.Join(path, file.Name()))
 		} else {
-
-			relativeName := strings.TrimPrefix(filepath.Join(path, file.Name()), pluginsManager.fullPluginsPath)
-			pluginsManager.loadOrUpdatePlugin(relativeName, file.ModTime())
+			match, _ := filepath.Match(pluginsManager.filter, file.Name())
+			if match {
+				relativeName := strings.TrimPrefix(filepath.Join(path, file.Name()), pluginsManager.fullPluginsPath)
+				pluginsManager.loadOrUpdatePlugin(relativeName, file.ModTime())
+			}
 		}
 	}
 	return nil
@@ -159,7 +162,7 @@ func (pluginsManager *Manager) unloadDeletedPlugins() {
 }
 
 // NewPluginsManager ...
-func NewPluginsManager(pluginsPath string, updatePluginsIntervalSec int, pluginsConstructor func(*Plugin) IPlugin) (*Manager, error) {
+func NewPluginsManager(pluginsPath string, filter string, updatePluginsIntervalSec int, pluginsConstructor func(*Plugin) IPlugin) (*Manager, error) {
 
 	pluginsManager := &Manager{
 		pluginsConstructor:       pluginsConstructor,
@@ -167,6 +170,7 @@ func NewPluginsManager(pluginsPath string, updatePluginsIntervalSec int, plugins
 		updatePluginsIntervalSec: updatePluginsIntervalSec,
 		plugins:                  map[string]*Plugin{},
 		started:                  false,
+		filter:                   filter,
 	}
 
 	pluginsPathFull, err := filepath.Abs(pluginsManager.pluginsPath)

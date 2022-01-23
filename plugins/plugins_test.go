@@ -50,7 +50,7 @@ func Test_AsWebServer(t *testing.T) {
 		}
 	}
 
-	pluginsManager, err := plugins.NewPluginsManager("", 3, pluginsConstructor)
+	pluginsManager, err := plugins.NewPluginsManager("", "*", 3, pluginsConstructor)
 	if err != nil {
 		t.Fatal(err)
 	}
