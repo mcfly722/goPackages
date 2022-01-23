@@ -19,6 +19,7 @@ type Manager struct {
 	pluginsPath              string
 	updatePluginsIntervalSec int
 	plugins                  map[string]*Plugin
+	started                  bool
 
 	ready sync.Mutex
 }
@@ -165,6 +166,7 @@ func NewPluginsManager(pluginsPath string, updatePluginsIntervalSec int, plugins
 		pluginsPath:              pluginsPath,
 		updatePluginsIntervalSec: updatePluginsIntervalSec,
 		plugins:                  map[string]*Plugin{},
+		started:                  false,
 	}
 
 	pluginsPathFull, err := filepath.Abs(pluginsManager.pluginsPath)
@@ -173,11 +175,19 @@ func NewPluginsManager(pluginsPath string, updatePluginsIntervalSec int, plugins
 	}
 	pluginsManager.fullPluginsPath = pluginsPathFull
 
+	return pluginsManager, nil
+}
+
+// Start ...
+func (pluginsManager *Manager) Start() error {
+	if pluginsManager.started == true {
+		return errors.New("Plugins Manager is already started")
+	}
+
 	go func() {
 
 		for {
-
-			err := pluginsManager.loadAndUpdateAllPlugins(pluginsPathFull)
+			err := pluginsManager.loadAndUpdateAllPlugins(pluginsManager.fullPluginsPath)
 			if err != nil {
 				log.Println(err)
 			}
@@ -186,8 +196,7 @@ func NewPluginsManager(pluginsPath string, updatePluginsIntervalSec int, plugins
 
 			time.Sleep(time.Duration(pluginsManager.updatePluginsIntervalSec) * time.Second)
 		}
-
 	}()
 
-	return pluginsManager, nil
+	return nil
 }
