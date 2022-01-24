@@ -2,6 +2,7 @@ package jsEngine_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"testing"
 	"time"
 
@@ -59,4 +60,42 @@ func Test_CloseUnknownRuntime(t *testing.T) {
 	} else {
 		t.Fatal("error was not dropped")
 	}
+}
+
+func Test_Race(t *testing.T) {
+	body, err := ioutil.ReadFile("jsEngine_test.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	api := func(runtime *goja.Runtime) {}
+
+	engine1 := jsEngine.NewJSEngine(api)
+
+	engine2 := jsEngine.NewJSEngine(api)
+
+	t.Log(fmt.Sprintf("script:\n%v", string(body)))
+
+	for i := 0; i < 10; i++ {
+		err = engine1.NewRuntime(fmt.Sprintf("1-%v", i), string(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		engine2.NewRuntime(fmt.Sprintf("2-%v", i), string(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		err := engine1.CloseRuntime(fmt.Sprintf("1-%v", i))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = engine2.CloseRuntime(fmt.Sprintf("2-%v", i))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
 }
