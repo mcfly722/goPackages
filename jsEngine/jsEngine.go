@@ -17,8 +17,14 @@ type JSRuntime struct {
 	jsContent      string
 	apiInitialized bool
 	destroyed      bool
+}
 
-	ready sync.Mutex
+// CallCallback ...
+func (runtime *JSRuntime) CallCallback(callback *goja.Callable) {
+	runtime.EventLoop <- &event{
+		kind:     1,
+		callback: callback,
+	}
 }
 
 // APIFunction ...
@@ -77,6 +83,9 @@ func (runtime *JSRuntime) Start() error {
 				if event.kind == 0 {
 					break loop
 				}
+				if event.kind == 1 {
+					(*event.callback)(nil)
+				}
 			}
 		}
 
@@ -127,7 +136,8 @@ func (jsEngine *JSEngine) newRuntime(name string, jsContent string) *JSRuntime {
 type event struct {
 	kind int
 	// 0 -exit (finish go-routine)
-	data string
+	// 1 - callback
+	callback *goja.Callable
 }
 
 // NewJSEngine ...

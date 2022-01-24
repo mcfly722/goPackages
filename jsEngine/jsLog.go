@@ -12,11 +12,12 @@ type JSLog struct{}
 func (jsLog *JSLog) Initialize(runtime *JSRuntime) error {
 
 	log.Printf(fmt.Sprintf("api:log added to %v", runtime.Name))
-	fConsole := func(msg string) {
+
+	logger := func(msg string) {
 		log.Println(msg)
 	}
 
-	runtime.VM.Set("log", fConsole)
+	runtime.VM.Set("log", logger)
 
 	return nil
 
