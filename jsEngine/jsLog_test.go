@@ -8,13 +8,19 @@ import (
 
 func Test_Log(t *testing.T) {
 	engine := jsEngine.NewJSEngine()
-	engine.AddAPI(jsEngine.JSLog)
 
-	if err := engine.NewRuntime("test", "log('logger works!')"); err != nil {
+	runtime, err := engine.NewRuntime("test", "log('logger works!')")
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := engine.CloseRuntime("test"); err != nil {
+	runtime.AddAPI(&jsEngine.JSLog{})
+
+	if err := runtime.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := engine.DestroyRuntime("test"); err != nil {
 		t.Fatal(err)
 	}
 }

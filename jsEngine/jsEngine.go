@@ -10,19 +10,65 @@ import (
 
 // JSRuntime ...
 type JSRuntime struct {
-	Name      string
-	EventLoop chan *event
-	VM        *goja.Runtime
+	Name           string
+	EventLoop      chan *event
+	apiFunctions   [](APIFunction)
+	VM             *goja.Runtime
+	jsContent      string
+	apiInitialized bool
+	destroyed      bool
+
+	ready sync.Mutex
 }
 
-func (runtime *JSRuntime) startEventLoop(jsContent string) error {
-	_, err := runtime.VM.RunString(jsContent)
+// APIFunction ...
+type APIFunction interface {
+	Initialize(jsRuntime *JSRuntime) error
+	Dispose(jsRuntime *JSRuntime)
+}
+
+func (runtime *JSRuntime) initAPI() error {
+	startedAPIFunctions := [](APIFunction){}
+
+	// apply all api functions to vm, or rollback all api using dispose
+	for _, apiFunction := range runtime.apiFunctions {
+		if err := apiFunction.Initialize(runtime); err != nil {
+
+			for _, initializedFunction := range startedAPIFunctions {
+				initializedFunction.Dispose(runtime)
+			}
+
+			return err
+		}
+
+		startedAPIFunctions = append(startedAPIFunctions, apiFunction)
+	}
+
+	return nil
+}
+
+// Start ...
+func (runtime *JSRuntime) Start() error {
+
+	if runtime.destroyed {
+		return fmt.Errorf("%v runtime already destroyed", runtime.Name)
+	}
+
+	if !runtime.apiInitialized {
+		if err := runtime.initAPI(); err != nil {
+			return err
+		}
+		runtime.apiInitialized = true
+	}
+
+	log.Printf(fmt.Sprintf("%v started", runtime.Name))
+	// start content execution
+	_, err := runtime.VM.RunString(runtime.jsContent)
 	if err != nil {
 		return err
 	}
 
 	go func() {
-		log.Printf(fmt.Sprintf("%v started", runtime.Name))
 
 	loop:
 		for {
@@ -34,41 +80,47 @@ func (runtime *JSRuntime) startEventLoop(jsContent string) error {
 			}
 		}
 
-		log.Printf(fmt.Sprintf("%v stopped", runtime.Name))
+		log.Printf(fmt.Sprintf("%v finished", runtime.Name))
 	}()
 
 	return nil
 }
 
-func (runtime *JSRuntime) close() {
-	runtime.EventLoop <- &event{
-		kind: 0,
+// Stop ...
+func (runtime *JSRuntime) destroy() {
+
+	if runtime.apiInitialized {
+		for _, apiFunction := range runtime.apiFunctions {
+			apiFunction.Dispose(runtime)
+		}
 	}
+
+	if !runtime.destroyed && runtime.apiInitialized {
+		runtime.EventLoop <- &event{
+			kind: 0,
+		}
+	}
+
+	runtime.destroyed = true
 }
 
 // JSEngine ...
 type JSEngine struct {
-	runtimes     map[string]*JSRuntime
-	apiFunctions [](func(runtime *JSRuntime) error)
-	ready        sync.Mutex
+	runtimes map[string]*JSRuntime
+	ready    sync.Mutex
 }
 
-func (jsEngine *JSEngine) newRuntime(name string, jsContent string) (*JSRuntime, error) {
-
+func (jsEngine *JSEngine) newRuntime(name string, jsContent string) *JSRuntime {
 	runtime := &JSRuntime{
-		Name:      name,
-		EventLoop: make(chan *event),
-		VM:        goja.New(),
+		Name:           name,
+		EventLoop:      make(chan *event),
+		VM:             goja.New(),
+		apiFunctions:   [](APIFunction){},
+		jsContent:      jsContent,
+		apiInitialized: false,
+		destroyed:      false,
 	}
-
-	// apply all api functions to vm
-	for _, apiFunction := range jsEngine.apiFunctions {
-		if err := apiFunction(runtime); err != nil {
-			return nil, err
-		}
-	}
-
-	return runtime, runtime.startEventLoop(jsContent)
+	return runtime
 }
 
 // event from JSEngine to Goroutine with JS Loop
@@ -81,42 +133,35 @@ type event struct {
 // NewJSEngine ...
 func NewJSEngine() *JSEngine {
 	return &JSEngine{
-		runtimes:     make(map[string](*JSRuntime)),
-		apiFunctions: [](func(*JSRuntime) error){},
+		runtimes: make(map[string](*JSRuntime)),
 	}
 }
 
 // NewRuntime ...
-func (jsEngine *JSEngine) NewRuntime(name string, jsContent string) error {
+func (jsEngine *JSEngine) NewRuntime(name string, jsContent string) (*JSRuntime, error) {
 	jsEngine.ready.Lock()
-	_, found := jsEngine.runtimes[name]
 
+	_, found := jsEngine.runtimes[name]
 	if found {
 		jsEngine.ready.Unlock()
-		return fmt.Errorf("namespace=%v already exist", name)
+		return nil, fmt.Errorf("runtime=%v already exist", name)
 	}
 
-	// add new Namespace
-	runtime, err := jsEngine.newRuntime(name, jsContent)
-	if err != nil {
-		jsEngine.ready.Unlock()
-		return fmt.Errorf("namespace=%v error:%v", name, err)
-	}
-
+	runtime := jsEngine.newRuntime(name, jsContent)
 	jsEngine.runtimes[name] = runtime
 
 	jsEngine.ready.Unlock()
 
-	return nil
+	return runtime, nil
 }
 
-// CloseRuntime ...
-func (jsEngine *JSEngine) CloseRuntime(name string) error {
+// DestroyRuntime ...
+func (jsEngine *JSEngine) DestroyRuntime(name string) error {
 	jsEngine.ready.Lock()
 
 	if runtime, found := jsEngine.runtimes[name]; found {
 
-		runtime.close()
+		runtime.destroy()
 
 		delete(jsEngine.runtimes, name)
 
@@ -129,6 +174,6 @@ func (jsEngine *JSEngine) CloseRuntime(name string) error {
 }
 
 // AddAPI ...
-func (jsEngine *JSEngine) AddAPI(apiFunction func(*JSRuntime) error) {
-	jsEngine.apiFunctions = append(jsEngine.apiFunctions, apiFunction)
+func (runtime *JSRuntime) AddAPI(apiFunction APIFunction) {
+	runtime.apiFunctions = append(runtime.apiFunctions, apiFunction)
 }

@@ -1,15 +1,28 @@
 package jsEngine
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 // JSLog ...
-func JSLog(jsRuntime *JSRuntime) error {
+type JSLog struct{}
 
+// Initialize ...
+func (jsLog *JSLog) Initialize(runtime *JSRuntime) error {
+
+	log.Printf(fmt.Sprintf("api:log added to %v", runtime.Name))
 	fConsole := func(msg string) {
 		log.Println(msg)
 	}
 
-	jsRuntime.VM.Set("log", fConsole)
+	runtime.VM.Set("log", fConsole)
 
 	return nil
+
+}
+
+// Dispose ...
+func (jsLog *JSLog) Dispose(runtime *JSRuntime) {
+	log.Printf(fmt.Sprintf("api:log disposed for %v", runtime.Name))
 }
