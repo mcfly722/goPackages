@@ -6,15 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dop251/goja"
 	"github.com/mcfly722/goPackages/jsEngine"
 )
 
 func Test_JSEngine1(t *testing.T) {
-
-	api := func(runtime *goja.Runtime) {}
-
-	engine := jsEngine.NewJSEngine(api)
+	engine := jsEngine.NewJSEngine()
 
 	engine.NewRuntime("test", "var a = [1,2,3,4,5]")
 
@@ -24,8 +20,7 @@ func Test_JSEngine1(t *testing.T) {
 }
 
 func Test_WrongJSCode(t *testing.T) {
-	api := func(runtime *goja.Runtime) {}
-	engine := jsEngine.NewJSEngine(api)
+	engine := jsEngine.NewJSEngine()
 	err := engine.NewRuntime("test", "fuck")
 	if err != nil {
 		t.Log(fmt.Sprintf("%v error catched.ok.", err))
@@ -35,8 +30,7 @@ func Test_WrongJSCode(t *testing.T) {
 }
 
 func Test_AppendRuntimeWithSameName(t *testing.T) {
-	api := func(runtime *goja.Runtime) {}
-	engine := jsEngine.NewJSEngine(api)
+	engine := jsEngine.NewJSEngine()
 
 	engine.NewRuntime("test", "var a=1")
 
@@ -49,8 +43,7 @@ func Test_AppendRuntimeWithSameName(t *testing.T) {
 }
 
 func Test_CloseUnknownRuntime(t *testing.T) {
-	api := func(runtime *goja.Runtime) {}
-	engine := jsEngine.NewJSEngine(api)
+	engine := jsEngine.NewJSEngine()
 
 	engine.NewRuntime("test", "var a=1")
 
@@ -68,11 +61,9 @@ func Test_Race(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	api := func(runtime *goja.Runtime) {}
+	engine1 := jsEngine.NewJSEngine()
 
-	engine1 := jsEngine.NewJSEngine(api)
-
-	engine2 := jsEngine.NewJSEngine(api)
+	engine2 := jsEngine.NewJSEngine()
 
 	t.Log(fmt.Sprintf("script:\n%v", string(body)))
 
