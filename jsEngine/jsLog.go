@@ -1,8 +1,7 @@
 package jsEngine
 
 import (
-	"fmt"
-	"log"
+	"github.com/mcfly722/goPackages/logger"
 )
 
 // JSLog ...
@@ -10,11 +9,10 @@ type JSLog struct{}
 
 // Initialize ...
 func (jsLog *JSLog) Initialize(runtime *JSRuntime) error {
-
-	log.Printf(fmt.Sprintf("api:log added to %v", runtime.Name))
+	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "log(string) initialized")
 
 	logger := func(msg string) {
-		log.Println(msg)
+		runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, msg)
 	}
 
 	runtime.VM.Set("log", logger)
@@ -25,5 +23,5 @@ func (jsLog *JSLog) Initialize(runtime *JSRuntime) error {
 
 // Dispose ...
 func (jsLog *JSLog) Dispose(runtime *JSRuntime) {
-	log.Printf(fmt.Sprintf("api:log disposed for %v", runtime.Name))
+	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "log(string) disposed")
 }

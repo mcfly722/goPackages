@@ -9,7 +9,7 @@ import (
 func Test_Log(t *testing.T) {
 	engine := jsEngine.NewJSEngine()
 
-	runtime, err := engine.NewRuntime("test", "log('logger works!')")
+	runtime, err := engine.NewRuntime("test", "log('logger works!')", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
