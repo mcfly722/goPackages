@@ -26,11 +26,14 @@ type JSRuntime struct {
 }
 
 // CallCallback ...
-func (runtime *JSRuntime) CallCallback(callback *goja.Callable) {
-	runtime.EventLoop <- &loopEvent{
-		Type:     1,
-		callback: callback,
-	}
+func (runtime *JSRuntime) CallCallback(callback *goja.Callable, args ...goja.Value) {
+	go func() { // unblocking send callback
+		runtime.EventLoop <- &loopEvent{
+			Type:     1,
+			callback: callback,
+			args:     args,
+		}
+	}()
 }
 
 // Finish ...
@@ -115,7 +118,7 @@ func (runtime *JSRuntime) Start() error {
 
 				// callback
 				if event.Type == 1 {
-					_, err := (*event.callback)(nil)
+					_, err := (*event.callback)(nil, event.args...)
 					if err != nil {
 						runtime.CallHandlerException(err)
 					}
@@ -176,6 +179,7 @@ type loopEvent struct {
 	// 0 - exit (finish go-routine)
 	// 1 - callback
 	callback *goja.Callable
+	args     []goja.Value
 }
 
 // NewJSEngine ...
