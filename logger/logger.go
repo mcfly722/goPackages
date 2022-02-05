@@ -6,18 +6,25 @@ import (
 	"time"
 )
 
-var (
-	// EventTypes ...
-	EventTypes = map[int]string{0: "EXPN", 1: "TRCE", 2: "INFO"}
+const (
+	// EventTypeDefault ...
+	EventTypeDefault = 0
+	// EventTypeException ...
+	EventTypeException = 1
+	// EventTypeInfo ...
+	EventTypeInfo = 2
+	// EventTypeTrace ...
+	EventTypeTrace = 3
 )
 
-const (
-	// EventTypeException ...
-	EventTypeException = 0
-	// EventTypeTrace ...
-	EventTypeTrace = 1
-	// EventTypeInfo ...
-	EventTypeInfo = 0
+var (
+	// EventTypes ...
+	EventTypes = map[int]string{
+		EventTypeDefault:   "    ",
+		EventTypeException: "EXPN",
+		EventTypeInfo:      "INFO",
+		EventTypeTrace:     "TRCE",
+	}
 )
 
 // Event ...
