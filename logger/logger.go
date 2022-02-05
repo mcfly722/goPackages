@@ -31,18 +31,26 @@ type Event struct {
 
 // Logger ...
 type Logger struct {
-	events  []*Event
-	counter int64
-
-	ready sync.Mutex
+	events        []*Event
+	counter       int64
+	consoleOutput bool
+	ready         sync.Mutex
 }
 
 // NewLogger ...
 func NewLogger(bufferSize int) *Logger {
 	return &Logger{
-		events:  make([]*Event, bufferSize),
-		counter: 0,
+		events:        make([]*Event, bufferSize),
+		consoleOutput: true,
+		counter:       0,
 	}
+}
+
+// SetOutputToConsole ...
+func (logger *Logger) SetOutputToConsole(flag bool) {
+	logger.ready.Lock()
+	logger.consoleOutput = flag
+	logger.ready.Unlock()
 }
 
 // LogEvent ...
@@ -58,8 +66,14 @@ func (logger *Logger) LogEvent(eventType int, object string, message string) {
 		Message:  message,
 	}
 
-	eventIndex := (int)(logger.counter % (int64)(len(logger.events)))
-	logger.events[eventIndex] = newEvent
+	if len(logger.events) > 0 {
+		eventIndex := (int)(logger.counter % (int64)(len(logger.events)))
+		logger.events[eventIndex] = newEvent
+	}
+
+	if logger.consoleOutput {
+		fmt.Println(newEvent.ToString())
+	}
 
 	logger.counter++
 
@@ -74,11 +88,16 @@ func EventTypeToText(eventType int) string {
 	return fmt.Sprintf("%4v", eventType)
 }
 
+// ToString ...
+func (event *Event) ToString() string {
+	return fmt.Sprintf("%v %8v [%v] %v: %v", event.DateTime.Format(time.RFC3339), event.Number, EventTypeToText(event.Type), event.Object, event.Message)
+}
+
 // EventsTextRepresentation ...
 func EventsTextRepresentation(events *[]Event) string {
 	result := ""
 	for _, event := range *events {
-		result = result + fmt.Sprintf("%v %5v [%v] %v: %v\n", event.DateTime.Format(time.RFC3339), event.Number, EventTypeToText(event.Type), event.Object, event.Message)
+		result = result + event.ToString() + "\n"
 	}
 	return result
 }

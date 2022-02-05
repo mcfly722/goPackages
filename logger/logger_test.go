@@ -60,3 +60,20 @@ func Test_Log(t *testing.T) {
 	}
 
 }
+
+func Test_ZeroLog(t *testing.T) {
+	logger := NewLogger(0)
+	logger.LogEvent(EventTypeInfo, "OBJECT#0", "Message#0")
+	logger.LogEvent(EventTypeInfo, "OBJECT#1", "Message#1")
+	logger.LogEvent(EventTypeInfo, "OBJECT#2", "Message#2")
+	fmt.Printf(EventsTextRepresentation(logger.GetLastEvents(0)))
+}
+
+func Test_ZeroLogWithoutOutput(t *testing.T) {
+	logger := NewLogger(0)
+	logger.SetOutputToConsole(false)
+	logger.LogEvent(EventTypeInfo, "OBJECT#0", "Message#0")
+	logger.LogEvent(EventTypeInfo, "OBJECT#1", "Message#1")
+	logger.LogEvent(EventTypeInfo, "OBJECT#2", "Message#2")
+	fmt.Printf(EventsTextRepresentation(logger.GetLastEvents(0)))
+}
