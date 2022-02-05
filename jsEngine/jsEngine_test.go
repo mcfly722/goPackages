@@ -33,7 +33,7 @@ func (_ *fakeAPIFailed) Dispose(runtime *jsEngine.JSRuntime) {
 func Test_JSEngine(t *testing.T) {
 	engine := jsEngine.NewJSEngine()
 
-	runtime, err := engine.NewRuntime("test", "var a = [1,2,3,4,5]")
+	runtime, err := engine.NewRuntime("test", "var a = [1,2,3,4,5]", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func Test_JSEngine(t *testing.T) {
 func Test_WrongJSCode(t *testing.T) {
 	engine := jsEngine.NewJSEngine()
 
-	runtime, err := engine.NewRuntime("test", "fuck")
+	runtime, err := engine.NewRuntime("test", "fuck", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,12 +65,12 @@ func Test_WrongJSCode(t *testing.T) {
 func Test_AppendRuntimeWithSameName(t *testing.T) {
 	engine := jsEngine.NewJSEngine()
 
-	_, err := engine.NewRuntime("test", "var a=1")
+	_, err := engine.NewRuntime("test", "var a=1", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = engine.NewRuntime("test", "var b=1")
+	_, err = engine.NewRuntime("test", "var b=1", 0)
 	if err != nil {
 		t.Log(fmt.Sprintf("%v error catched.ok.", err))
 	} else {
@@ -81,7 +81,7 @@ func Test_AppendRuntimeWithSameName(t *testing.T) {
 func Test_CloseUnknownRuntime(t *testing.T) {
 	engine := jsEngine.NewJSEngine()
 
-	_, err := engine.NewRuntime("test", "var a=1")
+	_, err := engine.NewRuntime("test", "var a=1", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func Test_CloseUnknownRuntime(t *testing.T) {
 func Test_StartDestroyedRuntime(t *testing.T) {
 	engine := jsEngine.NewJSEngine()
 
-	runtime, err := engine.NewRuntime("test", "var a=1")
+	runtime, err := engine.NewRuntime("test", "var a=1", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func Test_StartDestroyedRuntime(t *testing.T) {
 func Test_StartRuntimeTwoTimes(t *testing.T) {
 	engine := jsEngine.NewJSEngine()
 
-	runtime, err := engine.NewRuntime("test", "var a=1")
+	runtime, err := engine.NewRuntime("test", "var a=1", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func Test_RollbackFailedAPI(t *testing.T) {
 
 	engine := jsEngine.NewJSEngine()
 
-	runtime, err := engine.NewRuntime("test", "var a = [1,2,3,4,5]")
+	runtime, err := engine.NewRuntime("test", "var a = [1,2,3,4,5]", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +184,7 @@ func Test_Race(t *testing.T) {
 	t.Log(fmt.Sprintf("script:\n%v", string(body)))
 
 	for i := 0; i < 10; i++ {
-		runtime1, err := engine1.NewRuntime(fmt.Sprintf("1-%v", i), string(body))
+		runtime1, err := engine1.NewRuntime(fmt.Sprintf("1-%v", i), string(body), 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -193,7 +193,7 @@ func Test_Race(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		runtime2, err := engine2.NewRuntime(fmt.Sprintf("2-%v", i), string(body))
+		runtime2, err := engine2.NewRuntime(fmt.Sprintf("2-%v", i), string(body), 0)
 		if err != nil {
 			t.Fatal(err)
 		}
