@@ -72,6 +72,9 @@ func Test_ZeroLog(t *testing.T) {
 func Test_ZeroLogWithoutOutput(t *testing.T) {
 	logger := NewLogger(0)
 	logger.SetOutputToConsole(false)
+	if logger.IsOutputToConsoleEnabled() {
+		t.Fatal("IsOutputToConsoleEnabled not works!")
+	}
 	logger.LogEvent(EventTypeInfo, "OBJECT#0", "Message#0")
 	logger.LogEvent(EventTypeInfo, "OBJECT#1", "Message#1")
 	logger.LogEvent(EventTypeInfo, "OBJECT#2", "Message#2")
