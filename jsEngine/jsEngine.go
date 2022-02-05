@@ -6,25 +6,52 @@ import (
 	"sync"
 
 	"github.com/dop251/goja"
+	"github.com/mcfly722/goPackages/logger"
+)
+
+const (
+	defaultLogSizeForEngine  = 100
+	defaultLogSizeForRuntime = 100
 )
 
 // JSRuntime ...
 type JSRuntime struct {
 	Name           string
-	EventLoop      chan *event
+	EventLoop      chan *loopEvent
 	apiFunctions   [](APIFunction)
 	VM             *goja.Runtime
 	jsContent      string
 	apiInitialized bool
 	destroyed      bool
+	Logger         *logger.Logger
 }
 
 // CallCallback ...
 func (runtime *JSRuntime) CallCallback(callback *goja.Callable) {
-	runtime.EventLoop <- &event{
-		kind:     1,
+	runtime.EventLoop <- &loopEvent{
+		Type:     1,
 		callback: callback,
 	}
+}
+
+// Finish ...
+func (runtime *JSRuntime) Finish() {
+	go func() { // unblocking send exit
+		runtime.EventLoop <- &loopEvent{
+			Type: 0,
+		}
+	}()
+}
+
+// CallException ...
+func (runtime *JSRuntime) CallException(functionName string, message string) {
+	log.Printf(fmt.Sprintf("Exception :%v - %v", functionName, message))
+	panic(runtime.VM.ToValue(message))
+}
+
+// CallHandlerException ...
+func (runtime *JSRuntime) CallHandlerException(err error) {
+	log.Printf(fmt.Sprintf("Handler Exception:%v", err))
 }
 
 // APIFunction ...
@@ -80,12 +107,20 @@ func (runtime *JSRuntime) Start() error {
 		for {
 			select {
 			case event := <-runtime.EventLoop:
-				if event.kind == 0 {
+
+				// exit
+				if event.Type == 0 {
 					break loop
 				}
-				if event.kind == 1 {
-					(*event.callback)(nil)
+
+				// callback
+				if event.Type == 1 {
+					_, err := (*event.callback)(nil)
+					if err != nil {
+						runtime.CallHandlerException(err)
+					}
 				}
+
 			}
 		}
 
@@ -105,9 +140,7 @@ func (runtime *JSRuntime) destroy() {
 	}
 
 	if !runtime.destroyed && runtime.apiInitialized {
-		runtime.EventLoop <- &event{
-			kind: 0,
-		}
+		runtime.Finish()
 	}
 
 	runtime.destroyed = true
@@ -117,38 +150,46 @@ func (runtime *JSRuntime) destroy() {
 type JSEngine struct {
 	runtimes map[string]*JSRuntime
 	ready    sync.Mutex
+	Logger   *logger.Logger
 }
 
 func (jsEngine *JSEngine) newRuntime(name string, jsContent string) *JSRuntime {
+	logger := logger.NewLogger(defaultLogSizeForRuntime)
+	logger.SetOutputToConsole(jsEngine.Logger.IsOutputToConsoleEnabled())
+
 	runtime := &JSRuntime{
 		Name:           name,
-		EventLoop:      make(chan *event),
+		EventLoop:      make(chan *loopEvent),
 		VM:             goja.New(),
 		apiFunctions:   [](APIFunction){},
 		jsContent:      jsContent,
 		apiInitialized: false,
 		destroyed:      false,
+		Logger:         logger,
 	}
 	return runtime
 }
 
 // event from JSEngine to Goroutine with JS Loop
-type event struct {
-	kind int
-	// 0 -exit (finish go-routine)
+type loopEvent struct {
+	Type int
+	// 0 - exit (finish go-routine)
 	// 1 - callback
 	callback *goja.Callable
 }
 
 // NewJSEngine ...
 func NewJSEngine() *JSEngine {
+	logger := logger.NewLogger(defaultLogSizeForEngine)
+
 	return &JSEngine{
 		runtimes: make(map[string](*JSRuntime)),
+		Logger:   logger,
 	}
 }
 
 // NewRuntime ...
-func (jsEngine *JSEngine) NewRuntime(name string, jsContent string) (*JSRuntime, error) {
+func (jsEngine *JSEngine) NewRuntime(name string, jsContent string, logSize int) (*JSRuntime, error) {
 	jsEngine.ready.Lock()
 
 	_, found := jsEngine.runtimes[name]
