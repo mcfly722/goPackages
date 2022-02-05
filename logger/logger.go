@@ -53,6 +53,14 @@ func (logger *Logger) SetOutputToConsole(flag bool) {
 	logger.ready.Unlock()
 }
 
+// IsOutputToConsoleEnabled() ...
+func (logger *Logger) IsOutputToConsoleEnabled() bool {
+	logger.ready.Lock()
+	result := logger.consoleOutput
+	logger.ready.Unlock()
+	return result
+}
+
 // LogEvent ...
 func (logger *Logger) LogEvent(eventType int, object string, message string) {
 
