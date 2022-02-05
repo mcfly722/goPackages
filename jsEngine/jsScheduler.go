@@ -2,11 +2,11 @@ package jsEngine
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/mcfly722/goPackages/logger"
 )
 
 // JSScheduler ...
@@ -51,9 +51,8 @@ func newTimer(runtime *JSRuntime, id int64, intervalMilliseconds int64, callback
 				break loop
 			default:
 				if time.Now().After(timer.nextExpectingTime) {
-					// fire event
 
-					//log.Printf(fmt.Sprintf("%v timer", timer.id))
+					// fire event
 					runtime.CallCallback(callback)
 
 					// for next time
@@ -64,10 +63,11 @@ func newTimer(runtime *JSRuntime, id int64, intervalMilliseconds int64, callback
 
 		timer.working = false
 
-		log.Printf(fmt.Sprintf("timer %v stopped", timer.id))
+		runtime.Logger.LogEvent(logger.EventTypeTrace, runtime.Name, fmt.Sprintf("timer %v stopped", timer.id))
 	}()
 
-	log.Printf(fmt.Sprintf("timer %v started", timer.id))
+	runtime.Logger.LogEvent(logger.EventTypeTrace, runtime.Name, fmt.Sprintf("timer %v started", timer.id))
+
 	return timer
 }
 
@@ -104,10 +104,9 @@ func (scheduler *JSScheduler) Initialize(runtime *JSRuntime) error {
 	runtime.VM.Set("setInterval", setInterval)
 	runtime.VM.Set("clearInterval", clearInterval)
 
-	log.Printf(fmt.Sprintf("api:scheduler initialized for %v", runtime.Name))
+	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "scheduler initialized")
 
 	return nil
-
 }
 
 // Dispose ...
@@ -120,5 +119,5 @@ func (scheduler *JSScheduler) Dispose(runtime *JSRuntime) {
 	scheduler.timer = make(map[int64]*timer)
 	scheduler.numberOftimer = 0
 
-	log.Printf(fmt.Sprintf("api:scheduler disposed for %v", runtime.Name))
+	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "scheduler disposed")
 }

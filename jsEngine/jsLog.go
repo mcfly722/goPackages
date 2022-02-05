@@ -9,19 +9,18 @@ type JSLog struct{}
 
 // Initialize ...
 func (jsLog *JSLog) Initialize(runtime *JSRuntime) error {
-	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "log(string) initialized")
-
-	logger := func(msg string) {
+	log := func(msg string) {
 		runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, msg)
 	}
 
-	runtime.VM.Set("log", logger)
+	runtime.VM.Set("log", log)
+
+	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "log initialized")
 
 	return nil
-
 }
 
 // Dispose ...
 func (jsLog *JSLog) Dispose(runtime *JSRuntime) {
-	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "log(string) disposed")
+	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "log disposed")
 }

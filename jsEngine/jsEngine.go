@@ -2,7 +2,6 @@ package jsEngine
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/dop251/goja"
@@ -45,13 +44,13 @@ func (runtime *JSRuntime) Finish() {
 
 // CallException ...
 func (runtime *JSRuntime) CallException(functionName string, message string) {
-	log.Printf(fmt.Sprintf("Exception :%v - %v", functionName, message))
+	runtime.Logger.LogEvent(logger.EventTypeTrace, runtime.Name, fmt.Sprintf("issued function exception: %v - %v", functionName, message))
 	panic(runtime.VM.ToValue(message))
 }
 
 // CallHandlerException ...
 func (runtime *JSRuntime) CallHandlerException(err error) {
-	log.Printf(fmt.Sprintf("Handler Exception:%v", err))
+	runtime.Logger.LogEvent(logger.EventTypeTrace, runtime.Name, fmt.Sprintf("issued handler exception: %v", err))
 }
 
 // APIFunction ...
@@ -94,7 +93,8 @@ func (runtime *JSRuntime) Start() error {
 		runtime.apiInitialized = true
 	}
 
-	log.Printf(fmt.Sprintf("%v started", runtime.Name))
+	runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "runtime started")
+
 	// start content execution
 	_, err := runtime.VM.RunString(runtime.jsContent)
 	if err != nil {
@@ -124,7 +124,7 @@ func (runtime *JSRuntime) Start() error {
 			}
 		}
 
-		log.Printf(fmt.Sprintf("%v finished", runtime.Name))
+		runtime.Logger.LogEvent(logger.EventTypeInfo, runtime.Name, "runtime finished")
 	}()
 
 	return nil
