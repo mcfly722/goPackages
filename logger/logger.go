@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	// EventTypeDefault ...
-	EventTypeDefault = 0
+	// EventType ...
+	EventType = 0
 	// EventTypeException ...
 	EventTypeException = 1
 	// EventTypeInfo ...
@@ -20,7 +20,7 @@ const (
 var (
 	// EventTypes ...
 	EventTypes = map[int]string{
-		EventTypeDefault:   "    ",
+		EventType:          "    ",
 		EventTypeException: "EXPN",
 		EventTypeInfo:      "INFO",
 		EventTypeTrace:     "TRCE",
