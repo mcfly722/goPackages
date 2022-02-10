@@ -1,6 +1,6 @@
 # scheduler
-This scheduler collects objects to one queue according it's deadline time.
-Checking the first one deadline element in this queue, you can understand is there deadline occurs or not.
+This scheduler collects objects to queue according it's deadline time.
+Checking the first one deadline element in this queue, you can understand is there other deadlines in this queue occurs or not.
 
 ## Usage
 #### 1. Create scheduler:
