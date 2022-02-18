@@ -21,11 +21,10 @@ If it reached, method <b>scheduler.TakeFirstOutdated()</b> returns object, other
 ```
 object := scheduler.TakeFirstOutdatedOrNil()
 if object != nil {
-  // make some work with object
+  // timer for this object is outdated, object pulled from scheduler queue, now make some work with it
 }
 ```
 #### 4. You can cancel particular object from queue
-Several same objects in queue supported
 ```
 scheduler := scheduler.NewScheduler()
 scheduler.RegisterNewTimer(time.Now(), 1)
@@ -37,9 +36,14 @@ scheduler.RegisterNewTimer(time.Now(), 2)
 scheduler.CancelTimerFor(1)
 scheduler.CancelTimerFor(2)
 ```
-
+Several same objects in queue supported<br>
+#### 5. Or cancel all scheduler timers
+```
+scheduler.CancelAllTimers()
+```
 
 
 ## Limitations and specific
-Currently insertion of new deadline works for <b>O(n)</b> time (n - is the average size of deadlines queue)<br>
-For large schedulers which have more than 1000 timers, it would be nice to use more optimized insertion algorithm with <b>O(log(n))</b> time.
+* Currently insertion of new deadline works for <b>O(n)</b> time (n - is the average size of deadlines queue)<br>
+For large schedulers which have more than 1000 timers, it would be nice to use more optimized insertion algorithm with <b>O(log(n))</b> time.<BR>
+* All operations with scheduler are thread safe.

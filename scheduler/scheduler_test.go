@@ -2,8 +2,9 @@ package scheduler_test
 
 import (
 	"fmt"
-	"math/rand"
 	"sort"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,25 +21,30 @@ func getFirstOutdatedWithWaiting(scheduler scheduler.Scheduler) interface{} {
 	}
 }
 
-func testQueueWithLenght(t *testing.T, scheduler scheduler.Scheduler, n int) {
+func testQueueWithLenght(t *testing.T, scheduler scheduler.Scheduler, sequence *[]int) {
 
-	fmt.Print("test for:")
 	now := time.Now()
 
-	for i := 0; i < n; i++ {
-		v := rand.Intn(10)
+	var wg sync.WaitGroup
+	for i := 0; i < len(*sequence); i++ {
+		v := (*sequence)[i]
 		fmt.Print(fmt.Sprintf("%v", v))
-		scheduler.RegisterNewTimer(now.Add(time.Duration(v)*time.Nanosecond), v)
+		wg.Add(1)
+		go func() { // test for concurrency
+			scheduler.RegisterNewTimer(now.Add(time.Duration(v)*time.Nanosecond), v)
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 
 	result := []int{}
 
-	for i := 0; i < n; i++ {
+	for i := 0; i < len(*sequence); i++ {
 		a := getFirstOutdatedWithWaiting(scheduler)
 		result = append(result, a.(int))
 	}
 
-	fmt.Println(fmt.Sprintf("%v", result))
+	fmt.Println(fmt.Sprintf(" -> %v", result))
 	if !sort.IntsAreSorted(result) {
 		t.Fatal(fmt.Sprintf("obtained unsorted timers! %v", result))
 	}
@@ -59,13 +65,6 @@ func Test_Empty(t *testing.T) {
 	object := scheduler.TakeFirstOutdatedOrNil()
 	if object != nil {
 		t.Fatal("empty scheduler returns object")
-	}
-}
-
-func Test_Nby3(t *testing.T) {
-	scheduler := scheduler.NewScheduler()
-	for i := 0; i < 1000; i++ {
-		testQueueWithLenght(t, scheduler, 3)
 	}
 }
 
@@ -105,5 +104,23 @@ func Test_CancelAll(t *testing.T) {
 	object := scheduler.TakeFirstOutdatedOrNil()
 	if object != nil {
 		t.Fatal("empty scheduler returns object")
+	}
+}
+
+func string2Combination(str string) *[]int {
+	b := []byte(str)
+	out := []int{}
+	for _, v := range b {
+		out = append(out, int(v)-48)
+	}
+	return &out
+}
+
+func Test_RecombineFirstN(t *testing.T) {
+	scheduler := scheduler.NewScheduler()
+	for i := 1; i < 1024; i++ {
+		str := strconv.FormatInt(int64(i), 4)
+		sequence := string2Combination(str)
+		testQueueWithLenght(t, scheduler, sequence)
 	}
 }
