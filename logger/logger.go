@@ -61,7 +61,7 @@ func (logger *Logger) SetOutputToConsole(flag bool) {
 	logger.ready.Unlock()
 }
 
-// IsOutputToConsoleEnabled() ...
+// IsOutputToConsoleEnabled ...
 func (logger *Logger) IsOutputToConsoleEnabled() bool {
 	logger.ready.Lock()
 	result := logger.consoleOutput
