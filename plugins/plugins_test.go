@@ -1,69 +1,78 @@
 package plugins_test
 
 import (
-	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"strings"
+	"os"
+	"os/signal"
 	"testing"
-	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/mcfly722/goPackages/context"
+	"github.com/mcfly722/goPackages/logger"
 	"github.com/mcfly722/goPackages/plugins"
 )
 
-type Plugin struct {
-	*plugins.Plugin
-	router *mux.Router
-}
+type Plugin struct{}
 
 // OnLoad ...
-func (plugin *Plugin) OnLoad() {
-	backSlashed := strings.Replace(plugin.RelativeName, "\\", "/", -1)
-
-	plugin.router.HandleFunc(backSlashed, func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, fmt.Sprintf("<html>%v</html>", backSlashed))
-	})
-
-	log.Println(fmt.Sprintf("loaded plugin: %v (%v)", plugin.RelativeName, backSlashed))
+func (plugin *Plugin) OnLoad(relativeName string, body string) {
+	//log.Println(fmt.Sprintf("loaded plugin: %v", relativeName))
 }
 
 // OnUpdate ...
-func (plugin *Plugin) OnUpdate() {
-	log.Println(fmt.Sprintf("updated plugin: %v", plugin.RelativeName))
+func (plugin *Plugin) OnUpdate(relativeName string, body string) {
+	//log.Println(fmt.Sprintf("updated plugin: %v", relativeName))
 }
 
 // OnUnload ...
-func (plugin *Plugin) OnUnload() {
-	log.Println(fmt.Sprintf("uloaded plugin: %v", plugin.RelativeName))
+func (plugin *Plugin) OnDispose(relativeName string) {
+	//log.Println(fmt.Sprintf("uloaded plugin: %v", relativeName))
 }
 
-func Test_AsWebServer(t *testing.T) {
+type root struct{}
 
-	router := mux.NewRouter()
-
-	pluginsConstructor := func(plugin *plugins.Plugin) plugins.IPlugin {
-		return &Plugin{
-			Plugin: plugin,
-			router: router,
+func (root *root) Go(current context.Context) {
+loop:
+	for {
+		select {
+		case <-current.OnDone():
+			break loop
 		}
 	}
+}
 
-	pluginsManager, err := plugins.NewPluginsManager("", "*", 3, pluginsConstructor)
+func (root *root) Dispose() {}
+
+func Test_AsServer(t *testing.T) {
+
+	rootCtx := context.NewContextFor(&root{})
+
+	pluginsConstructor := func() plugins.IPlugin {
+		return &Plugin{}
+	}
+
+	pluginsManager, err := plugins.NewPluginsManager("", "plugin*", 3, pluginsConstructor)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := pluginsManager.Start(); err != nil {
-		t.Fatal(err)
+	log := logger.NewLogger(5)
+	log.SetOutputToConsole(true)
+	pluginsManager.SetLogger(log)
+
+	rootCtx.NewContextFor(pluginsManager)
+
+	// handle ctrl+c for gracefully shutdown using context
+	{
+		// handle ctrl+c for gracefully shutdown using context
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			<-c
+			log.LogEvent(logger.EventTypeInfo, "Test_AsServer", "CTRL+C signal")
+			rootCtx.OnDone() <- true
+		}()
 	}
 
-	go func() {
-		if err := http.ListenAndServe("127.0.0.1:8081", router); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	rootCtx.Wait()
 
-	time.Sleep(10 * time.Second)
+	log.LogEvent(logger.EventTypeInfo, "Test_AsServer", "done")
 }
