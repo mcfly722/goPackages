@@ -63,7 +63,8 @@ loop:
 	for {
 		select {
 		case <-time.After(duration): // we do not use Ticker here because it can't start immediately, always need to wait interval
-			{
+
+			{ // load and update changed plugins
 				duration = time.Duration(manager.updatePluginsIntervalSec) * time.Second // after first start we change interval dutation to seconds
 				manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", "looking for plugins changes...")
 
@@ -108,6 +109,14 @@ loop:
 						}
 					}
 
+				}
+
+				{ // check all loaded plugins on UpdateRequired
+					for _, plugin := range plugins {
+						if plugin.self.UpdateRequired() {
+							plugin.self.OnUpdate(plugin.relativeName, plugin.body)
+						}
+					}
 				}
 
 				{ // unload deleted plugins
