@@ -30,7 +30,7 @@ func (plugin *Plugin) OnDispose(pluginsFullPath string, relativeName string) {
 }
 
 // UpdateRequired ...
-func (plugin *Plugin) UpdateRequired() bool {
+func (plugin *Plugin) UpdateRequired(pluginsFullPath string, relativeName string) bool {
 	return false
 }
 

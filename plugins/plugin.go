@@ -13,7 +13,7 @@ import (
 // IPlugin ...
 type IPlugin interface {
 	OnLoad(pluginsFullPath string, relativeName string, body string)
-	UpdateRequired() bool
+	UpdateRequired(pluginsFullPath string, relativeName string) bool
 	OnUpdate(pluginsFullPath string, relativeName string, body string)
 	OnDispose(pluginsFullPath string, relativeName string)
 }
