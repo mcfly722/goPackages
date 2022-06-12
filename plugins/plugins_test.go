@@ -56,7 +56,7 @@ func Test_AsServer(t *testing.T) {
 		return &Plugin{}
 	}
 
-	pluginsManager, err := plugins.NewPluginsManager("", "*.go", 3, pluginsConstructor)
+	pluginsManager, err := plugins.NewPluginsManager("1", "*.go", 3, pluginsConstructor)
 	if err != nil {
 		t.Fatal(err)
 	}
