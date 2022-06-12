@@ -41,9 +41,16 @@ func newPlugin(parentLogger *logger.Logger, path string, relativeName string, pl
 		return nil, err
 	}
 
+	relativeNameWithoutSlash := relativeName
+	if len(relativeNameWithoutSlash) > 0 {
+		if relativeNameWithoutSlash[0] == 92 {
+			relativeNameWithoutSlash = relativeNameWithoutSlash[1:]
+		}
+	}
+
 	plugin := &plugin{
 		self:         pluginsConstructor(),
-		relativeName: relativeName,
+		relativeName: relativeNameWithoutSlash,
 		modification: file.ModTime(),
 		body:         string(body[:]),
 		parentLogger: parentLogger,
