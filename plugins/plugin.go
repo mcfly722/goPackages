@@ -12,13 +12,14 @@ import (
 
 // IPlugin ...
 type IPlugin interface {
-	OnLoad(relativeName string, body string)
+	OnLoad(pluginsFullPath string, relativeName string, body string)
 	UpdateRequired() bool
-	OnUpdate(relativeName string, body string)
-	OnDispose(relativeName string)
+	OnUpdate(pluginsFullPath string, relativeName string, body string)
+	OnDispose(pluginsFullPath string, relativeName string)
 }
 
 type plugin struct {
+	path         string
 	self         IPlugin
 	relativeName string
 	modification time.Time
@@ -49,6 +50,7 @@ func newPlugin(parentLogger *logger.Logger, path string, relativeName string, pl
 	}
 
 	plugin := &plugin{
+		path:         path,
 		self:         pluginsConstructor(),
 		relativeName: relativeNameWithoutSlash,
 		modification: file.ModTime(),
@@ -63,14 +65,14 @@ func newPlugin(parentLogger *logger.Logger, path string, relativeName string, pl
 
 func (plugin *plugin) Go(current context.Context) {
 	plugin.parentLogger.LogEvent(logger.EventTypeInfo, "pluginsManager", fmt.Sprintf("%v loading", plugin.relativeName))
-	plugin.self.OnLoad(plugin.relativeName, plugin.body)
+	plugin.self.OnLoad(plugin.path, plugin.relativeName, plugin.body)
 loop:
 	for {
 		select {
 		case body := <-plugin.onUpdate:
 			plugin.body = body
 			plugin.parentLogger.LogEvent(logger.EventTypeInfo, "pluginsManager", fmt.Sprintf("%v updating", plugin.relativeName))
-			plugin.self.OnUpdate(plugin.relativeName, plugin.body)
+			plugin.self.OnUpdate(plugin.path, plugin.relativeName, plugin.body)
 			break
 		case <-plugin.onTerminate:
 			break loop
@@ -81,6 +83,6 @@ loop:
 }
 
 func (plugin *plugin) Dispose() {
-	plugin.self.OnDispose(plugin.relativeName)
+	plugin.self.OnDispose(plugin.path, plugin.relativeName)
 	plugin.parentLogger.LogEvent(logger.EventTypeInfo, "pluginsManager", fmt.Sprintf("%v unloaded", plugin.relativeName))
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/mcfly722/goPackages/logger"
 )
 
-const version string = "1.0.1"
+const version string = "1.0.2"
 
 // Manager ...
 type Manager struct {
@@ -121,7 +121,7 @@ loop:
 				{ // check all loaded plugins on UpdateRequired
 					for _, plugin := range plugins {
 						if plugin.self.UpdateRequired() {
-							plugin.self.OnUpdate(plugin.relativeName, plugin.body)
+							plugin.self.OnUpdate(plugin.path, plugin.relativeName, plugin.body)
 						}
 					}
 				}

@@ -15,17 +15,17 @@ import (
 type Plugin struct{}
 
 // OnLoad ...
-func (plugin *Plugin) OnLoad(relativeName string, body string) {
+func (plugin *Plugin) OnLoad(pluginsFullPath string, relativeName string, body string) {
 	log.Println(fmt.Sprintf("%v loaded", relativeName))
 }
 
 // OnUpdate ...
-func (plugin *Plugin) OnUpdate(relativeName string, body string) {
+func (plugin *Plugin) OnUpdate(pluginsFullPath string, relativeName string, body string) {
 	log.Println(fmt.Sprintf("%v updated", relativeName))
 }
 
 // OnUnload ...
-func (plugin *Plugin) OnDispose(relativeName string) {
+func (plugin *Plugin) OnDispose(pluginsFullPath string, relativeName string) {
 	log.Println(fmt.Sprintf("%v uloaded", relativeName))
 }
 
@@ -56,7 +56,7 @@ func Test_AsServer(t *testing.T) {
 		return &Plugin{}
 	}
 
-	pluginsManager, err := plugins.NewPluginsManager("1", "*.go", 3, pluginsConstructor)
+	pluginsManager, err := plugins.NewPluginsManager("", "*.go", 3, pluginsConstructor)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,9 +67,7 @@ func Test_AsServer(t *testing.T) {
 
 	rootCtx.NewContextFor(pluginsManager)
 
-	// handle ctrl+c for gracefully shutdown using context
-	{
-		// handle ctrl+c for gracefully shutdown using context
+	{ // handle ctrl+c for gracefully shutdown using context
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
 		go func() {
