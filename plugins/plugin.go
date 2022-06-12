@@ -13,6 +13,7 @@ import (
 // IPlugin ...
 type IPlugin interface {
 	OnLoad(relativeName string, body string)
+	UpdateRequired() bool
 	OnUpdate(relativeName string, body string)
 	OnDispose(relativeName string)
 }
@@ -63,7 +64,7 @@ loop:
 			plugin.body = body
 			plugin.parentLogger.LogEvent(logger.EventTypeInfo, "pluginsManager", fmt.Sprintf("%v updating", plugin.relativeName))
 			plugin.self.OnUpdate(plugin.relativeName, plugin.body)
-			break loop
+			break
 		case <-plugin.onTerminate:
 			break loop
 		case <-current.OnDone():

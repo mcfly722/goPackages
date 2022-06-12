@@ -3,6 +3,7 @@ package plugins
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -53,18 +54,18 @@ func (manager *Manager) Go(current context.Context) {
 		manager.logger = logger.NewLogger(5)
 	}
 
-	ticker := time.NewTicker(time.Duration(manager.updatePluginsIntervalSec) * time.Second)
-
 	manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", fmt.Sprintf("started for %v (filter=%v)", manager.fullPluginsPath, manager.filter))
 
 	plugins := map[string]*plugin{}
 
+	duration := time.Duration(0) // first interval is zero, because we need to start immediately
 loop:
 	for {
 		select {
-		case <-ticker.C:
+		case <-time.After(duration): // we do not use Ticker here because it can't start immediately, always need to wait interval
 			{
-				manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", "looking for plugins...")
+				duration = time.Duration(manager.updatePluginsIntervalSec) * time.Second // after first start we change interval dutation to seconds
+				manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", "looking for plugins changes...")
 
 				pluginFiles, err := recursiveFilesSearch(manager.fullPluginsPath, manager.fullPluginsPath, manager.filter)
 				if err != nil {
@@ -73,8 +74,8 @@ loop:
 				}
 
 				for _, pluginFile := range pluginFiles {
-					if _, ok := plugins[pluginFile]; !ok {
-						// init
+					if alreadyLoadedPlugin, ok := plugins[pluginFile]; !ok {
+						// plugin file not loaded yet, we need load it
 						plugin, err := newPlugin(manager.logger, manager.fullPluginsPath, pluginFile, manager.pluginsConstructor)
 						if err != nil {
 							manager.logger.LogEvent(logger.EventTypeException, "pluginsManager", err.Error())
@@ -82,10 +83,31 @@ loop:
 						plugins[pluginFile] = plugin
 						current.NewContextFor(plugin)
 					} else {
-						// check mod time
+						// plugin file already loaded, we need check file modification date
+						fullPluginFileName := fmt.Sprintf("%v%v", manager.fullPluginsPath, pluginFile)
+
+						file, err := os.Stat(fullPluginFileName)
+						if err != nil {
+							manager.logger.LogEvent(logger.EventTypeException, "pluginsManager", err.Error())
+						} else {
+
+							if file.ModTime() != alreadyLoadedPlugin.modification {
+								// plugin file was modified
+								bodyBytes, err := ioutil.ReadFile(fullPluginFileName)
+								if err != nil {
+									manager.logger.LogEvent(logger.EventTypeException, "pluginsManager", err.Error())
+								} else {
+									// update plugin
+									body := string(bodyBytes[:])
+									alreadyLoadedPlugin.modification = file.ModTime()
+									go func() {
+										alreadyLoadedPlugin.onUpdate <- body
+									}()
+								}
+							}
+						}
 					}
 
-					//manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", pluginFile)
 				}
 
 				{ // unload deleted plugins
@@ -120,7 +142,6 @@ func (manager *Manager) Dispose() {
 	manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", "disposed")
 }
 
-// -------------------------------------------------------------------------------------------------
 func contains(elems []string, v string) bool {
 	for _, s := range elems {
 		if v == s {
@@ -160,31 +181,3 @@ func recursiveFilesSearch(rootPluginsPath string, currentFullPath string, filter
 	}
 	return result, nil
 }
-
-/*
-func (pluginsManager *Manager) unloadDeletedPlugins() {
-	pluginsToUnload := []*Plugin{}
-
-	pluginsManager.ready.Lock()
-
-	for _, plugin := range pluginsManager.plugins {
-		fullPluginFileName := filepath.Join(pluginsManager.fullPluginsPath, plugin.RelativeName)
-		_, err := os.Stat(fullPluginFileName)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				pluginsToUnload = append(pluginsToUnload, plugin)
-			}
-		}
-	}
-
-	for _, pluginToUnload := range pluginsToUnload {
-		delete(pluginsManager.plugins, pluginToUnload.RelativeName)
-	}
-
-	pluginsManager.ready.Unlock()
-
-	for _, pluginToUnload := range pluginsToUnload {
-		pluginToUnload.actions.OnUnload()
-	}
-}
-*/

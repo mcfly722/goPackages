@@ -1,6 +1,8 @@
 package plugins_test
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"testing"
@@ -14,17 +16,22 @@ type Plugin struct{}
 
 // OnLoad ...
 func (plugin *Plugin) OnLoad(relativeName string, body string) {
-	//log.Println(fmt.Sprintf("loaded plugin: %v", relativeName))
+	log.Println(fmt.Sprintf("%v loaded", relativeName))
 }
 
 // OnUpdate ...
 func (plugin *Plugin) OnUpdate(relativeName string, body string) {
-	//log.Println(fmt.Sprintf("updated plugin: %v", relativeName))
+	log.Println(fmt.Sprintf("%v updated", relativeName))
 }
 
 // OnUnload ...
 func (plugin *Plugin) OnDispose(relativeName string) {
-	//log.Println(fmt.Sprintf("uloaded plugin: %v", relativeName))
+	log.Println(fmt.Sprintf("%v uloaded", relativeName))
+}
+
+// UpdateRequired ...
+func (plugin *Plugin) UpdateRequired() bool {
+	return false
 }
 
 type root struct{}
@@ -49,7 +56,7 @@ func Test_AsServer(t *testing.T) {
 		return &Plugin{}
 	}
 
-	pluginsManager, err := plugins.NewPluginsManager("", "plugin*", 3, pluginsConstructor)
+	pluginsManager, err := plugins.NewPluginsManager("", "*.go", 3, pluginsConstructor)
 	if err != nil {
 		t.Fatal(err)
 	}
