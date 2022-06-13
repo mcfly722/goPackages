@@ -1,4 +1,4 @@
-# goPackages
+# goPackages v1.2
 
 ## context
 Replacement for standard context library. Allows to control close parent context only after child contexts.
