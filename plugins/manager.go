@@ -12,8 +12,6 @@ import (
 	"github.com/mcfly722/goPackages/logger"
 )
 
-const version string = "1.0.3"
-
 // Manager ...
 type Manager struct {
 	pluginsConstructor       func() IPlugin
@@ -61,7 +59,7 @@ func (manager *Manager) Go(current context.Context) {
 		manager.logger = logger.NewLogger(5)
 	}
 
-	manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", fmt.Sprintf("started for %v (filter=%v) ver%v", manager.fullPluginsPath, manager.filter, version))
+	manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", fmt.Sprintf("started for %v (filter=%v)", manager.fullPluginsPath, manager.filter))
 
 	plugins := map[string]*plugin{}
 
