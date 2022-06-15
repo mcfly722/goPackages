@@ -3,66 +3,63 @@ package plugins
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/mcfly722/goPackages/context"
-	"github.com/mcfly722/goPackages/logger"
 )
+
+// Plugin ...
+type Plugin interface {
+	context.ContextedInstance
+	Terminate()
+}
+
+type pluginConfig struct {
+	plugin           Plugin
+	context          context.Context
+	modificationTime time.Time
+}
 
 // Manager ...
 type Manager struct {
-	pluginsConstructor       func() IPlugin
 	pluginsPath              string
-	fullPluginsPath          string
-	updatePluginsIntervalSec int
 	filter                   string
-	plugins                  map[string]*plugin
-	logger                   *logger.Logger
+	updatePluginsIntervalSec int
+	pluginsConstructor       func(fullPath string) Plugin
+	pluginsConfigurations    map[string]*pluginConfig
 }
 
-// NewPluginsManager ...
-func NewPluginsManager(pluginsPath string, filter string, updatePluginsIntervalSec int, pluginsConstructor func() IPlugin) (*Manager, error) {
-
-	pluginsManager := &Manager{
-		pluginsConstructor:       pluginsConstructor,
-		pluginsPath:              pluginsPath,
-		updatePluginsIntervalSec: updatePluginsIntervalSec,
-		filter:                   filter,
-	}
-
-	pluginsPathFull, err := filepath.Abs(pluginsManager.pluginsPath)
+func newPluginConfiguration(fullPluginFileName string, pluginsConstructor func(fullPath string) Plugin) (*pluginConfig, error) {
+	file, err := os.Stat(fullPluginFileName)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := os.Stat(pluginsPathFull); err != nil {
-		return nil, err
-	}
-
-	pluginsManager.fullPluginsPath = pluginsPathFull
-
-	return pluginsManager, nil
+	return &pluginConfig{
+		plugin:           pluginsConstructor(fullPluginFileName),
+		modificationTime: file.ModTime(),
+	}, nil
 }
 
-// SetLogger ...
-func (manager *Manager) SetLogger(logger *logger.Logger) {
-	manager.logger = logger
+// NewPluginsManager ...
+func NewPluginsManager(pluginsPath string, filter string, updatePluginsIntervalSec int, pluginsConstructor func(fullPath string) Plugin) *Manager {
+	pluginsManager := &Manager{
+		pluginsPath:              pluginsPath,
+		filter:                   filter,
+		updatePluginsIntervalSec: updatePluginsIntervalSec,
+		pluginsConstructor:       pluginsConstructor,
+		pluginsConfigurations:    make(map[string]*pluginConfig),
+	}
+
+	return pluginsManager
 }
 
 // Go ...
 func (manager *Manager) Go(current context.Context) {
-
-	if manager.logger == nil {
-		manager.logger = logger.NewLogger(5)
-	}
-
-	manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", fmt.Sprintf("started for %v (filter=%v)", manager.fullPluginsPath, manager.filter))
-
-	plugins := map[string]*plugin{}
-
 	duration := time.Duration(0) // first interval is zero, because we need to start immediately
 loop:
 	for {
@@ -71,76 +68,70 @@ loop:
 
 			{ // load and update changed plugins
 				duration = time.Duration(manager.updatePluginsIntervalSec) * time.Second // after first start we change interval dutation to seconds
-				manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", "looking for plugins changes...")
 
-				pluginFiles, err := recursiveFilesSearch(manager.fullPluginsPath, manager.fullPluginsPath, manager.filter)
+				fullPluginsPath, err := filepath.Abs(manager.pluginsPath)
 				if err != nil {
-					manager.logger.LogEvent(logger.EventTypeException, "pluginsManager", err.Error())
+					current.Log(1, err.Error())
 					break
 				}
 
-				for _, pluginFile := range pluginFiles {
-					if alreadyLoadedPlugin, ok := plugins[pluginFile]; !ok {
-						// plugin file not loaded yet, we need load it
-						plugin, err := newPlugin(manager.logger, manager.fullPluginsPath, pluginFile, manager.pluginsConstructor)
-						if err != nil {
-							manager.logger.LogEvent(logger.EventTypeException, "pluginsManager", err.Error())
-						}
-						plugins[pluginFile] = plugin
-						current.NewContextFor(plugin)
-					} else {
-						// plugin file already loaded, we need check file modification date
-						fullPluginFileName := fmt.Sprintf("%v%v", manager.fullPluginsPath, pluginFile)
+				current.Log(0, "check changes...")
 
-						file, err := os.Stat(fullPluginFileName)
-						if err != nil {
-							manager.logger.LogEvent(logger.EventTypeException, "pluginsManager", err.Error())
-						} else {
-
-							if file.ModTime() != alreadyLoadedPlugin.modification {
-								// plugin file was modified
-								bodyBytes, err := ioutil.ReadFile(fullPluginFileName)
-								if err != nil {
-									manager.logger.LogEvent(logger.EventTypeException, "pluginsManager", err.Error())
-								} else {
-									// update plugin
-									body := string(bodyBytes[:])
-									alreadyLoadedPlugin.modification = file.ModTime()
-									go func() {
-										alreadyLoadedPlugin.onUpdate <- body
-									}()
-								}
-							}
-						}
-					}
-
+				pluginFiles, err := recursiveFilesSearch(fullPluginsPath, fullPluginsPath, manager.filter)
+				if err != nil {
+					current.Log(2, err.Error())
+					break
 				}
 
-				{ // check all loaded plugins on UpdateRequired
-					for _, plugin := range plugins {
-						if plugin.self.UpdateRequired(plugin.path, plugin.relativeName) {
-							plugin.self.OnUpdate(plugin.path, plugin.relativeName, plugin.body)
+				pluginsToTerminate := []string{}
+
+				{ // delete updated plugins
+					for _, pluginFile := range pluginFiles {
+						if config, ok := manager.pluginsConfigurations[pluginFile]; ok {
+							// plugin file already loaded, we need check file modification date and if it different, just delete it from list
+							file, err := os.Stat(pluginFile)
+							if err != nil {
+								current.Log(3, err.Error())
+							} else {
+								if file.ModTime() != config.modificationTime {
+									pluginsToTerminate = append(pluginsToTerminate, pluginFile)
+								}
+							}
 						}
 					}
 				}
 
 				{ // unload deleted plugins
-					pluginsToTerminate := []string{}
-
-					for pluginFileName := range plugins {
+					for pluginFileName := range manager.pluginsConfigurations {
 						if !contains(pluginFiles, pluginFileName) {
 							pluginsToTerminate = append(pluginsToTerminate, pluginFileName)
 						}
 					}
-
 					for _, pluginToTerminate := range pluginsToTerminate {
-						plugin := plugins[pluginToTerminate]
-						delete(plugins, pluginToTerminate)
-						go func() {
-							plugin.onTerminate <- true
-						}()
+						config := manager.pluginsConfigurations[pluginToTerminate]
+						{ // send termination and wait till plugin would be terminated
+							go func() {
+								config.plugin.Terminate()
+							}()
+							config.context.Wait()
+						}
+						delete(manager.pluginsConfigurations, pluginToTerminate)
 					}
+				}
 
+				{ // load not existing plugins
+					for _, pluginFile := range pluginFiles {
+						if _, ok := manager.pluginsConfigurations[pluginFile]; !ok {
+
+							config, err := newPluginConfiguration(pluginFile, manager.pluginsConstructor)
+							if err != nil {
+								current.Log(2, err.Error())
+							} else {
+								config.context = current.NewContextFor(config.plugin, fmt.Sprintf("%v[%v]", pluginFile, rand.Intn(99999999)), "plugin")
+								manager.pluginsConfigurations[pluginFile] = config
+							}
+						}
+					}
 				}
 
 				break
@@ -152,9 +143,7 @@ loop:
 }
 
 // Dispose ...
-func (manager *Manager) Dispose() {
-	manager.logger.LogEvent(logger.EventTypeInfo, "pluginsManager", "disposed")
-}
+func (manager *Manager) Dispose(current context.Context) {}
 
 func contains(elems []string, v string) bool {
 	for _, s := range elems {
@@ -189,7 +178,15 @@ func recursiveFilesSearch(rootPluginsPath string, currentFullPath string, filter
 			match, _ := filepath.Match(filter, file.Name())
 			if match {
 				relativeName := strings.TrimPrefix(filepath.Join(path, file.Name()), rootPluginsPath)
-				result = append(result, relativeName)
+
+				relativeNameWithoutSlash := relativeName
+				if len(relativeNameWithoutSlash) > 0 {
+					if relativeNameWithoutSlash[0] == 92 {
+						relativeNameWithoutSlash = relativeNameWithoutSlash[1:]
+					}
+				}
+
+				result = append(result, relativeNameWithoutSlash)
 			}
 		}
 	}
