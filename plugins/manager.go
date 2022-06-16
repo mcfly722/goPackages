@@ -1,12 +1,10 @@
 package plugins
 
 import (
-	"fmt"
 	"io/ioutil"
-	"math/rand"
-	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mcfly722/goPackages/context"
@@ -15,47 +13,48 @@ import (
 // Plugin ...
 type Plugin interface {
 	context.ContextedInstance
-	Terminate()
-}
-
-type pluginConfig struct {
-	plugin           Plugin
-	context          context.Context
-	modificationTime time.Time
 }
 
 // Manager ...
 type Manager struct {
 	pluginsPath              string
 	filter                   string
-	updatePluginsIntervalSec int
+	rescanPluginsIntervalSec int
 	pluginsConstructor       func(fullPath string) Plugin
-	pluginsConfigurations    map[string]*pluginConfig
-}
-
-func newPluginConfiguration(fullPluginFileName string, pluginsConstructor func(fullPath string) Plugin) (*pluginConfig, error) {
-	file, err := os.Stat(fullPluginFileName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pluginConfig{
-		plugin:           pluginsConstructor(fullPluginFileName),
-		modificationTime: file.ModTime(),
-	}, nil
+	definitions              map[string]*pluginDefinition
+	ready                    sync.Mutex
 }
 
 // NewPluginsManager ...
-func NewPluginsManager(pluginsPath string, filter string, updatePluginsIntervalSec int, pluginsConstructor func(fullPath string) Plugin) *Manager {
+func NewPluginsManager(pluginsPath string, filter string, rescanPluginsIntervalSec int, pluginsConstructor func(fullPath string) Plugin) *Manager {
 	pluginsManager := &Manager{
 		pluginsPath:              pluginsPath,
 		filter:                   filter,
-		updatePluginsIntervalSec: updatePluginsIntervalSec,
+		rescanPluginsIntervalSec: rescanPluginsIntervalSec,
 		pluginsConstructor:       pluginsConstructor,
-		pluginsConfigurations:    make(map[string]*pluginConfig),
+		definitions:              make(map[string]*pluginDefinition),
 	}
 
 	return pluginsManager
+}
+
+func (manager *Manager) registerNewPluginDefinition(definition *pluginDefinition) {
+	manager.ready.Lock()
+	defer manager.ready.Unlock()
+	manager.definitions[definition.getID()] = definition
+}
+
+func (manager *Manager) unregisterPluginDefinition(definition *pluginDefinition) {
+	manager.ready.Lock()
+	defer manager.ready.Unlock()
+	delete(manager.definitions, definition.getID())
+}
+
+func (manager *Manager) hasAlreadyRegisteredDefinition(definitionID string) bool {
+	manager.ready.Lock()
+	defer manager.ready.Unlock()
+	_, ok := manager.definitions[definitionID]
+	return ok
 }
 
 // Go ...
@@ -66,8 +65,8 @@ loop:
 		select {
 		case <-time.After(duration): // we do not use Ticker here because it can't start immediately, always need to wait interval
 
-			{ // load and update changed plugins
-				duration = time.Duration(manager.updatePluginsIntervalSec) * time.Second // after first start we change interval dutation to seconds
+			{ // rescan for not loaded yet plugins
+				duration = time.Duration(manager.rescanPluginsIntervalSec) * time.Second // after first start we change interval dutation to seconds
 
 				fullPluginsPath, err := filepath.Abs(manager.pluginsPath)
 				if err != nil {
@@ -83,53 +82,17 @@ loop:
 					break
 				}
 
-				pluginsToTerminate := []string{}
-
-				{ // delete updated plugins
-					for _, pluginFile := range pluginFiles {
-						if config, ok := manager.pluginsConfigurations[pluginFile]; ok {
-							// plugin file already loaded, we need check file modification date and if it different, just delete it from list
-							file, err := os.Stat(pluginFile)
-							if err != nil {
-								current.Log(3, err.Error())
-							} else {
-								if file.ModTime() != config.modificationTime {
-									pluginsToTerminate = append(pluginsToTerminate, pluginFile)
-								}
-							}
-						}
-					}
-				}
-
-				{ // unload deleted plugins
-					for pluginFileName := range manager.pluginsConfigurations {
-						if !contains(pluginFiles, pluginFileName) {
-							pluginsToTerminate = append(pluginsToTerminate, pluginFileName)
-						}
-					}
-					for _, pluginToTerminate := range pluginsToTerminate {
-						config := manager.pluginsConfigurations[pluginToTerminate]
-						{ // send termination and wait till plugin would be terminated
-							go func() {
-								config.plugin.Terminate()
-							}()
-							config.context.Wait()
-						}
-						delete(manager.pluginsConfigurations, pluginToTerminate)
-					}
-				}
-
 				{ // load not existing plugins
 					for _, pluginFile := range pluginFiles {
-						if _, ok := manager.pluginsConfigurations[pluginFile]; !ok {
-
-							config, err := newPluginConfiguration(pluginFile, manager.pluginsConstructor)
+						if !manager.hasAlreadyRegisteredDefinition(pluginFile) {
+							definition, err := manager.newPluginDefinition(fullPluginsPath, pluginFile, manager.rescanPluginsIntervalSec)
 							if err != nil {
 								current.Log(2, err.Error())
 							} else {
-								config.context = current.NewContextFor(config.plugin, fmt.Sprintf("%v[%v]", pluginFile, rand.Intn(99999999)), "plugin")
-								manager.pluginsConfigurations[pluginFile] = config
+								manager.registerNewPluginDefinition(definition)
+								current.NewContextFor(definition, pluginFile, "definition")
 							}
+
 						}
 					}
 				}
