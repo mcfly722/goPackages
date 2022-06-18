@@ -46,7 +46,9 @@ func Test_AsServer(t *testing.T) {
 
 	rootCtx := context.NewRootContext(context.NewConsoleLogDebugger())
 
-	pluginsManager := plugins.NewPluginsManager(pluginsPath, "*.go", 1, newPlugin)
+	pluginsProvider := plugins.NewPluginsFromFilesProvider(pluginsPath, "*.go")
+
+	pluginsManager := plugins.NewPluginsManager(pluginsProvider, 1, newPlugin)
 
 	rootCtx.NewContextFor(pluginsManager, "pluginsManager", "pluginsManager")
 
