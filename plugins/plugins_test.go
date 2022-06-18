@@ -4,20 +4,21 @@ import (
 	"os"
 	"os/signal"
 	"testing"
+	"time"
 
 	"github.com/mcfly722/goPackages/context"
 	"github.com/mcfly722/goPackages/plugins"
 )
 
 type plugin struct {
-	path      string
-	terminate chan bool
+	definition plugins.PluginDefinition
+	counter    int
 }
 
-func newPlugin(path string) plugins.Plugin {
+func newPlugin(definition plugins.PluginDefinition) context.ContextedInstance {
 	return &plugin{
-		path:      path,
-		terminate: make(chan bool),
+		definition: definition,
+		counter:    0,
 	}
 }
 
@@ -25,9 +26,19 @@ func (plugin *plugin) Go(current context.Context) {
 loop:
 	for {
 		select {
-		case <-plugin.terminate:
-			current.Log(102, "terminate")
-			break loop
+		case <-time.After(1 * time.Second):
+			plugin.counter++
+			if plugin.definition.Outdated() {
+				current.Log(102, "terminate")
+				break loop
+			}
+
+			if plugin.counter > 5 {
+				current.Log(102, "terminate by counter1")
+				break loop
+			}
+
+			break
 		case <-current.OnDone():
 			break loop
 		}
@@ -36,10 +47,6 @@ loop:
 }
 
 func (plugin *plugin) Dispose(current context.Context) {}
-
-func (plugin *plugin) Terminate() {
-	plugin.terminate <- true
-}
 
 func Test_AsServer(t *testing.T) {
 	pluginsPath := ""

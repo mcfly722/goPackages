@@ -2,45 +2,48 @@ package plugins
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Provider ...
 type Provider interface {
 	GetPlugins() ([]string, error)
-	GetCurrentPath() (string, error)
+	GetPluginModificationTime(pluginPath string) (time.Time, error)
 }
 
-// FromFilesProvider ...
-type FromFilesProvider struct {
+type fromFilesProvider struct {
 	pluginsPath string
 	filter      string
 }
 
 // NewPluginsFromFilesProvider ...
 func NewPluginsFromFilesProvider(pluginsPath string, filter string) Provider {
-
-	return &FromFilesProvider{
+	return &fromFilesProvider{
 		pluginsPath: pluginsPath,
 		filter:      filter,
 	}
 }
 
-// GetPlugins ...
-func (provider *FromFilesProvider) GetPlugins() ([]string, error) {
+func (provider *fromFilesProvider) GetPluginModificationTime(pluginPath string) (time.Time, error) {
+	file, err := os.Stat(filepath.Join(provider.pluginsPath, pluginPath))
+	if err != nil {
+		return time.Time{}, err
+	}
+	return file.ModTime(), nil
+}
 
-	fullPluginsPath, err := provider.GetCurrentPath()
+// GetPlugins ...
+func (provider *fromFilesProvider) GetPlugins() ([]string, error) {
+
+	fullPluginsPath, err := filepath.Abs(provider.pluginsPath)
 	if err != nil {
 		return nil, err
 	}
 
 	return recursiveFilesSearch(fullPluginsPath, fullPluginsPath, provider.filter)
-}
-
-// GetCurrentPath ...
-func (provider *FromFilesProvider) GetCurrentPath() (string, error) {
-	return filepath.Abs(provider.pluginsPath)
 }
 
 func recursiveFilesSearch(rootPluginsPath string, currentFullPath string, filter string) ([]string, error) {

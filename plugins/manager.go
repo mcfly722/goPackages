@@ -1,67 +1,78 @@
 package plugins
 
 import (
+	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/mcfly722/goPackages/context"
 )
 
-// Plugin ...
-type Plugin interface {
-	context.ContextedInstance
+// Constructor ...
+type Constructor func(definition PluginDefinition) context.ContextedInstance
+
+type manager struct {
+	provider          Provider
+	rescanIntervalSec int
+	constructor       Constructor
+	definitions       map[string]*pluginDefinition
+	ready             sync.Mutex
 }
 
-// Manager ...
-type Manager struct {
-	provider                 Provider
-	rescanPluginsIntervalSec int
-	pluginsConstructor       func(fullPath string) Plugin
-	definitions              map[string]*pluginDefinition
-	ready                    sync.Mutex
-}
-
-// NewPluginsManager ...
-func NewPluginsManager(provider Provider, rescanPluginsIntervalSec int, pluginsConstructor func(fullPath string) Plugin) *Manager {
-	pluginsManager := &Manager{
-		provider:                 provider,
-		rescanPluginsIntervalSec: rescanPluginsIntervalSec,
-		pluginsConstructor:       pluginsConstructor,
-		definitions:              make(map[string]*pluginDefinition),
+// NewPluginsManager ...1
+func NewPluginsManager(provider Provider, rescanIntervalSec int, constructor Constructor) context.ContextedInstance {
+	return &manager{
+		provider:          provider,
+		rescanIntervalSec: rescanIntervalSec,
+		constructor:       constructor,
+		definitions:       make(map[string]*pluginDefinition),
 	}
-
-	return pluginsManager
 }
 
-func (manager *Manager) registerNewPluginDefinition(definition *pluginDefinition) {
+func (manager *manager) definitionIsOutdated(definition *pluginDefinition) bool {
 	manager.ready.Lock()
 	defer manager.ready.Unlock()
-	manager.definitions[definition.getID()] = definition
+	if cachedDefinition, ok := manager.definitions[definition.id]; ok {
+		if cachedDefinition.modificationTime == definition.modificationTime {
+			return false
+		}
+	}
+	return true
 }
 
-func (manager *Manager) unregisterPluginDefinition(definition *pluginDefinition) {
+func (manager *manager) getRegisteredDefinition(definitionID string) (*pluginDefinition, bool) {
 	manager.ready.Lock()
 	defer manager.ready.Unlock()
-	delete(manager.definitions, definition.getID())
+	definition, found := manager.definitions[definitionID]
+	return definition, found
 }
 
-func (manager *Manager) hasAlreadyRegisteredDefinition(definitionID string) bool {
+func (manager *manager) registerNewPluginDefinition(definition *pluginDefinition) {
 	manager.ready.Lock()
 	defer manager.ready.Unlock()
-	_, ok := manager.definitions[definitionID]
-	return ok
+	manager.definitions[definition.id] = definition
+}
+
+func (manager *manager) unregisterPluginDefinition(definitionID string) *pluginDefinition {
+	manager.ready.Lock()
+	defer manager.ready.Unlock()
+	if definition, found := manager.definitions[definitionID]; found {
+		delete(manager.definitions, definitionID)
+		return definition
+	}
+	return nil
 }
 
 // Go ...
-func (manager *Manager) Go(current context.Context) {
+func (manager *manager) Go(current context.Context) {
 	duration := time.Duration(0) // first interval is zero, because we need to start immediately
 loop:
 	for {
 		select {
 		case <-time.After(duration): // we do not use Ticker here because it can't start immediately, always need to wait interval
-
 			{ // rescan for not loaded yet plugins
-				duration = time.Duration(manager.rescanPluginsIntervalSec) * time.Second // after first start we change interval dutation to seconds
+				duration = time.Duration(manager.rescanIntervalSec) * time.Second // after first start we change interval dutation to seconds
 
 				current.Log(0, "check changes...")
 
@@ -71,36 +82,67 @@ loop:
 					break
 				}
 
-				{ // load not existing plugins
+				pluginsModificationTimes := make(map[string]time.Time)
+				{ // collect plugins modification Times
 					for _, plugin := range plugins {
-						if !manager.hasAlreadyRegisteredDefinition(plugin) {
-
-							path, err := manager.provider.GetCurrentPath()
-							if err != nil {
-								current.Log(2, err.Error())
-							} else {
-								definition, err := manager.newPluginDefinition(path, plugin, manager.rescanPluginsIntervalSec)
-								if err != nil {
-									current.Log(2, err.Error())
-								} else {
-									manager.registerNewPluginDefinition(definition)
-									current.NewContextFor(definition, plugin, "definition")
-								}
-							}
+						modificationTime, err := manager.provider.GetPluginModificationTime(plugin)
+						if err != nil {
+							break
 						}
+						pluginsModificationTimes[plugin] = modificationTime
 					}
 				}
 
-				break
+				{ // delete not existing or outdated definitions
+					manager.ready.Lock()
+					definitionsForDeleting := []string{}
+
+					for plugin, definition := range manager.definitions {
+						if modificationTime, found := pluginsModificationTimes[plugin]; !found {
+							definitionsForDeleting = append(definitionsForDeleting, plugin)
+						} else {
+							if definition.modificationTime != modificationTime {
+								definitionsForDeleting = append(definitionsForDeleting, plugin)
+							}
+						}
+					}
+					manager.ready.Unlock()
+
+					for _, definitionForDeleting := range definitionsForDeleting {
+						unregisteredDefinition := manager.unregisterPluginDefinition(definitionForDeleting)
+						unregisteredDefinition.context.Wait()
+					}
+
+				}
+
+				{ // load new definitions
+					for _, plugin := range plugins {
+						if _, found := manager.getRegisteredDefinition(plugin); !found {
+
+							definition := &pluginDefinition{
+								id:               plugin,
+								modificationTime: pluginsModificationTimes[plugin],
+								manager:          manager,
+							}
+
+							manager.registerNewPluginDefinition(definition)
+							pluginInstance := manager.constructor(definition)
+
+							definition.context = current.NewContextFor(pluginInstance, fmt.Sprintf("%v(%v)", definition.Name(), rand.Intn(9999999)), "definition")
+						}
+					}
+				}
 			}
+			break
 		case <-current.OnDone():
 			break loop
 		}
 	}
+
 }
 
 // Dispose ...
-func (manager *Manager) Dispose(current context.Context) {}
+func (manager *manager) Dispose(current context.Context) {}
 
 func contains(elems []string, v string) bool {
 	for _, s := range elems {
