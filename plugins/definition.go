@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"path/filepath"
 	"time"
 
 	"github.com/mcfly722/goPackages/context"
@@ -11,6 +12,7 @@ type PluginDefinition interface {
 	Name() string
 	Outdated() bool
 	GetBody() string
+	GetResource(path string) (*[]byte, error)
 }
 
 type pluginDefinition struct {
@@ -31,4 +33,8 @@ func (pluginDefinition *pluginDefinition) GetBody() string {
 
 func (pluginDefinition *pluginDefinition) Outdated() bool {
 	return pluginDefinition.manager.definitionIsOutdated(pluginDefinition)
+}
+
+func (pluginDefinition *pluginDefinition) GetResource(path string) (*[]byte, error) {
+	return pluginDefinition.manager.getResource(filepath.Join(filepath.Dir(pluginDefinition.id), path))
 }

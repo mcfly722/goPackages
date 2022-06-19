@@ -64,6 +64,10 @@ func (manager *manager) unregisterPluginDefinition(definitionID string) *pluginD
 	return nil
 }
 
+func (manager *manager) getResource(path string) (*[]byte, error) {
+	return manager.provider.GetResource(path)
+}
+
 // Go ...
 func (manager *manager) Go(current context.Context) {
 	duration := time.Duration(0) // first interval is zero, because we need to start immediately
