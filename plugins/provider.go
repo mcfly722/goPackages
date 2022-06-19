@@ -12,6 +12,7 @@ import (
 type Provider interface {
 	GetPlugins() ([]string, error)
 	GetPluginModificationTime(pluginPath string) (time.Time, error)
+	GetResource(path string) (*[]byte, error)
 }
 
 type fromFilesProvider struct {
@@ -44,6 +45,16 @@ func (provider *fromFilesProvider) GetPlugins() ([]string, error) {
 	}
 
 	return recursiveFilesSearch(fullPluginsPath, fullPluginsPath, provider.filter)
+}
+
+func (provider *fromFilesProvider) GetResource(path string) (*[]byte, error) {
+
+	data, err := os.ReadFile(filepath.Join(provider.pluginsPath, path))
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
 }
 
 func recursiveFilesSearch(rootPluginsPath string, currentFullPath string, filter string) ([]string, error) {

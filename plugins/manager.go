@@ -119,16 +119,23 @@ loop:
 					for _, plugin := range plugins {
 						if _, found := manager.getRegisteredDefinition(plugin); !found {
 
-							definition := &pluginDefinition{
-								id:               plugin,
-								modificationTime: pluginsModificationTimes[plugin],
-								manager:          manager,
+							body, err := manager.provider.GetResource(plugin)
+							if err != nil {
+								current.Log(1, err.Error())
+							} else {
+
+								definition := &pluginDefinition{
+									id:               plugin,
+									modificationTime: pluginsModificationTimes[plugin],
+									manager:          manager,
+									body:             string(*body),
+								}
+
+								manager.registerNewPluginDefinition(definition)
+								pluginInstance := manager.constructor(definition)
+
+								definition.context = current.NewContextFor(pluginInstance, fmt.Sprintf("%v(%v)", definition.Name(), rand.Intn(9999999)), "definition")
 							}
-
-							manager.registerNewPluginDefinition(definition)
-							pluginInstance := manager.constructor(definition)
-
-							definition.context = current.NewContextFor(pluginInstance, fmt.Sprintf("%v(%v)", definition.Name(), rand.Intn(9999999)), "definition")
 						}
 					}
 				}

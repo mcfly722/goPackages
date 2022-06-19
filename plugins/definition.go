@@ -10,6 +10,7 @@ import (
 type PluginDefinition interface {
 	Name() string
 	Outdated() bool
+	GetBody() string
 }
 
 type pluginDefinition struct {
@@ -17,10 +18,15 @@ type pluginDefinition struct {
 	modificationTime time.Time
 	manager          *manager
 	context          context.Context
+	body             string
 }
 
 func (pluginDefinition *pluginDefinition) Name() string {
 	return pluginDefinition.id
+}
+
+func (pluginDefinition *pluginDefinition) GetBody() string {
+	return pluginDefinition.body
 }
 
 func (pluginDefinition *pluginDefinition) Outdated() bool {
