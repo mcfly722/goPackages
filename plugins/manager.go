@@ -1,8 +1,6 @@
 package plugins
 
 import (
-	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -138,7 +136,7 @@ loop:
 								manager.registerNewPluginDefinition(definition)
 								pluginInstance := manager.constructor(definition)
 
-								definition.context = current.NewContextFor(pluginInstance, fmt.Sprintf("%v(%v)", definition.Name(), rand.Intn(9999999)), "definition")
+								definition.context = current.NewContextFor(pluginInstance, definition.Name(), "definition")
 							}
 						}
 					}
