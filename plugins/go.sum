@@ -1,2 +1,4 @@
 github.com/mcfly722/goPackages/context v0.0.0-20220618215524-62e9e75c39d6 h1:kxmNfWi7UYDldeYh7ius8J8+f2l2ZZVUgAbVPhNTXIY=
 github.com/mcfly722/goPackages/context v0.0.0-20220618215524-62e9e75c39d6/go.mod h1:i38+RCkeReJo5SgIE5Le8fJZHCwp7QgnZic9yrUMFJY=
+github.com/mcfly722/goPackages/context v0.0.0-20220620202359-19eb8061a0fb h1:OZ3aMAbveI4t0ET9IRs/Vdb/qYgHOydqhAG0lHk3C4w=
+github.com/mcfly722/goPackages/context v0.0.0-20220620202359-19eb8061a0fb/go.mod h1:i38+RCkeReJo5SgIE5Le8fJZHCwp7QgnZic9yrUMFJY=

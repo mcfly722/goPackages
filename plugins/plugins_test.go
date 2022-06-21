@@ -28,25 +28,26 @@ loop:
 		select {
 		case <-time.After(1 * time.Second):
 			plugin.counter++
+
 			if plugin.definition.Outdated() {
 				current.Log(102, "terminate")
-				break loop
+				current.Cancel()
 			}
 
 			if plugin.counter > 5 {
 				current.Log(102, "terminate by counter1")
-				break loop
+				current.Cancel()
 			}
 
 			break
-		case <-current.OnDone():
-			break loop
+		case _, opened := <-current.Opened():
+			if !opened {
+				break loop
+			}
 		}
 
 	}
 }
-
-func (plugin *plugin) Dispose(current context.Context) {}
 
 func Test_AsServer(t *testing.T) {
 	pluginsPath := ""
@@ -65,7 +66,7 @@ func Test_AsServer(t *testing.T) {
 		go func() {
 			<-c
 			rootCtx.Log(1, "CTRL+C signal")
-			rootCtx.Terminate()
+			rootCtx.Cancel()
 		}()
 	}
 

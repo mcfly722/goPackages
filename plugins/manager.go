@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ type manager struct {
 	rescanIntervalSec int
 	constructor       Constructor
 	definitions       map[string]*pluginDefinition
+	counter           int64
 	ready             sync.Mutex
 }
 
@@ -25,6 +27,7 @@ func NewPluginsManager(provider Provider, rescanIntervalSec int, constructor Con
 		rescanIntervalSec: rescanIntervalSec,
 		constructor:       constructor,
 		definitions:       make(map[string]*pluginDefinition),
+		counter:           0,
 	}
 }
 
@@ -112,7 +115,7 @@ loop:
 
 					for _, definitionForDeleting := range definitionsForDeleting {
 						unregisteredDefinition := manager.unregisterPluginDefinition(definitionForDeleting)
-						unregisteredDefinition.context.Wait()
+						unregisteredDefinition.context.Cancel()
 					}
 
 				}
@@ -136,22 +139,24 @@ loop:
 								manager.registerNewPluginDefinition(definition)
 								pluginInstance := manager.constructor(definition)
 
-								definition.context = current.NewContextFor(pluginInstance, definition.Name(), "definition")
+								manager.ready.Lock()
+								definition.context = current.NewContextFor(pluginInstance, fmt.Sprintf("%v(%v)", definition.Name(), manager.counter), "definition")
+								manager.counter++
+								manager.ready.Unlock()
 							}
 						}
 					}
 				}
 			}
 			break
-		case <-current.OnDone():
-			break loop
+		case _, opened := <-current.Opened():
+			if !opened {
+				break loop
+			}
 		}
 	}
 
 }
-
-// Dispose ...
-func (manager *manager) Dispose(current context.Context) {}
 
 func contains(elems []string, v string) bool {
 	for _, s := range elems {
