@@ -145,7 +145,6 @@ loop:
 									manager.ready.Lock()
 									manager.counter++
 									manager.ready.Unlock()
-
 								}
 							}
 						}
