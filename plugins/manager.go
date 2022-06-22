@@ -136,13 +136,17 @@ loop:
 									body:             string(*body),
 								}
 
-								manager.registerNewPluginDefinition(definition)
 								pluginInstance := manager.constructor(definition)
 
-								manager.ready.Lock()
-								definition.context = current.NewContextFor(pluginInstance, fmt.Sprintf("%v(%v)", definition.Name(), manager.counter), "definition")
-								manager.counter++
-								manager.ready.Unlock()
+								definition.context, err = current.NewContextFor(pluginInstance, fmt.Sprintf("%v(%v)", definition.Name(), manager.counter), "definition")
+								if err == nil {
+									manager.registerNewPluginDefinition(definition)
+
+									manager.ready.Lock()
+									manager.counter++
+									manager.ready.Unlock()
+
+								}
 							}
 						}
 					}
