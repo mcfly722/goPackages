@@ -1,7 +1,6 @@
 package plugins
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -80,14 +79,17 @@ loop:
 
 				current.Log(80, "check changes...")
 
+				current.Log(110, "GetPlugins", "...")
 				plugins, err := manager.provider.GetPlugins()
 				if err != nil {
 					current.Log(2, err.Error())
 					break
 				}
+				defer current.Log(110, "GetPlugins", "done")
 
 				pluginsModificationTimes := make(map[string]time.Time)
 				{ // collect plugins modification Times
+					current.Log(110, "collect plugins modification Times", "...")
 					for _, plugin := range plugins {
 						modificationTime, err := manager.provider.GetPluginModificationTime(plugin)
 						if err != nil {
@@ -95,9 +97,11 @@ loop:
 						}
 						pluginsModificationTimes[plugin] = modificationTime
 					}
+					current.Log(110, "collect plugins modification Times", "done")
 				}
 
 				{ // delete not existing or outdated definitions
+					current.Log(110, "delete not existing or outdated definitions", "...")
 					manager.ready.Lock()
 					definitionsForDeleting := []string{}
 
@@ -111,18 +115,23 @@ loop:
 						}
 					}
 					manager.ready.Unlock()
+					current.Log(110, "delete not existing or outdated definitions", "unlock")
 
 					for _, definitionForDeleting := range definitionsForDeleting {
 						unregisteredDefinition := manager.unregisterPluginDefinition(definitionForDeleting)
 						unregisteredDefinition.context.Cancel()
 					}
 
+					current.Log(110, "delete not existing or outdated definitions", "done")
 				}
 
 				{ // load new definitions
+					current.Log(110, "load new definitions", "...")
+
 					for _, plugin := range plugins {
 						if _, found := manager.getRegisteredDefinition(plugin); !found {
 
+							current.Log(110, "load new definitions", "GetResource")
 							body, err := manager.provider.GetResource(plugin)
 							if err != nil {
 								current.Log(1, err.Error())
@@ -137,16 +146,19 @@ loop:
 
 								pluginInstance := manager.constructor(definition)
 
+								current.Log(110, "load new definitions", "NewContextFor")
 								definition.context, err = current.NewContextFor(pluginInstance, definition.Name(), "definition")
 								if err == nil {
+									current.Log(110, "load new definitions", "registerNewPluginDefinition", "...")
 									manager.registerNewPluginDefinition(definition)
-
+									current.Log(110, "load new definitions", "registerNewPluginDefinition", "done")
 								} else {
-									current.Log(fmt.Sprintf("skipping creating new context for %v", definition.Name()))
+									current.Log(110, "load new definitions", "skipping")
 								}
 							}
 						}
 					}
+					current.Log(110, "load new definitions", "done")
 				}
 
 				current.Log(105, "check changes done")
