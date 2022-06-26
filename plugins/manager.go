@@ -145,6 +145,8 @@ loop:
 									manager.ready.Lock()
 									manager.counter++
 									manager.ready.Unlock()
+								} else {
+									current.Log(fmt.Sprintf("skipping creating new context for %v", definition.Name()))
 								}
 							}
 						}
