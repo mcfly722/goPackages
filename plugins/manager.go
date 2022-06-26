@@ -69,6 +69,7 @@ func (manager *manager) getResource(path string) (*[]byte, error) {
 
 // Go ...
 func (manager *manager) Go(current context.Context) {
+	current.Log(99, "loop started")
 	duration := time.Duration(0) // first interval is zero, because we need to start immediately
 loop:
 	for {
@@ -147,6 +148,9 @@ loop:
 						}
 					}
 				}
+
+				current.Log(105, "check changes done")
+
 			}
 			break
 		case _, opened := <-current.Opened():
@@ -155,7 +159,7 @@ loop:
 			}
 		}
 	}
-
+	current.Log(99, "loop finished")
 }
 
 func contains(elems []string, v string) bool {
