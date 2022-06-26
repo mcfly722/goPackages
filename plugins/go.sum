@@ -10,3 +10,7 @@ github.com/mcfly722/goPackages/context v0.0.0-20220623195934-495afd401e77 h1:F1Q
 github.com/mcfly722/goPackages/context v0.0.0-20220623195934-495afd401e77/go.mod h1:i38+RCkeReJo5SgIE5Le8fJZHCwp7QgnZic9yrUMFJY=
 github.com/mcfly722/goPackages/context v0.0.0-20220623201138-0fceec69e486 h1:TP0XHc2BboRP0ol9y8/YYBkpkrYfe6QApR4A2CWhb/U=
 github.com/mcfly722/goPackages/context v0.0.0-20220623201138-0fceec69e486/go.mod h1:i38+RCkeReJo5SgIE5Le8fJZHCwp7QgnZic9yrUMFJY=
+github.com/mcfly722/goPackages/context v0.0.0-20220626101311-4205bb637c64 h1:WHFQ6Y+g+zodU4ZzzYNeimJqzR7qLOCgvNFxsAEfI70=
+github.com/mcfly722/goPackages/context v0.0.0-20220626101311-4205bb637c64/go.mod h1:i38+RCkeReJo5SgIE5Le8fJZHCwp7QgnZic9yrUMFJY=
+github.com/mcfly722/goPackages/context v0.0.0-20220626101739-42e2f4aacb97 h1:PosDNSZXRpcJv7ya4Oet6RnC8NLWpDts12mAGOPSAzY=
+github.com/mcfly722/goPackages/context v0.0.0-20220626101739-42e2f4aacb97/go.mod h1:i38+RCkeReJo5SgIE5Le8fJZHCwp7QgnZic9yrUMFJY=

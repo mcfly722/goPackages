@@ -52,7 +52,7 @@ loop:
 func Test_AsServer(t *testing.T) {
 	pluginsPath := ""
 
-	rootCtx := context.NewRootContext(context.NewConsoleLogDebugger())
+	rootCtx := context.NewRootContext(context.NewConsoleLogDebugger(100))
 
 	pluginsProvider := plugins.NewPluginsFromFilesProvider(pluginsPath, "*.go")
 

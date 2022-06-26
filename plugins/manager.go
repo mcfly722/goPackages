@@ -16,7 +16,6 @@ type manager struct {
 	rescanIntervalSec int
 	constructor       Constructor
 	definitions       map[string]*pluginDefinition
-	counter           int64
 	ready             sync.Mutex
 }
 
@@ -27,7 +26,6 @@ func NewPluginsManager(provider Provider, rescanIntervalSec int, constructor Con
 		rescanIntervalSec: rescanIntervalSec,
 		constructor:       constructor,
 		definitions:       make(map[string]*pluginDefinition),
-		counter:           0,
 	}
 }
 
@@ -79,7 +77,7 @@ loop:
 			{ // rescan for not loaded yet plugins
 				duration = time.Duration(manager.rescanIntervalSec) * time.Second // after first start we change interval dutation to seconds
 
-				current.Log(0, "check changes...")
+				current.Log(80, "check changes...")
 
 				plugins, err := manager.provider.GetPlugins()
 				if err != nil {
@@ -138,13 +136,10 @@ loop:
 
 								pluginInstance := manager.constructor(definition)
 
-								definition.context, err = current.NewContextFor(pluginInstance, fmt.Sprintf("%v(%v)", definition.Name(), manager.counter), "definition")
+								definition.context, err = current.NewContextFor(pluginInstance, definition.Name(), "definition")
 								if err == nil {
 									manager.registerNewPluginDefinition(definition)
 
-									manager.ready.Lock()
-									manager.counter++
-									manager.ready.Unlock()
 								} else {
 									current.Log(fmt.Sprintf("skipping creating new context for %v", definition.Name()))
 								}
