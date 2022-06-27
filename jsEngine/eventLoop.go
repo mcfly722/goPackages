@@ -7,7 +7,21 @@ import (
 	"github.com/mcfly722/goPackages/context"
 )
 
-type apiConstructor func(context context.Context, eventLoop *eventLoop, runtime *goja.Runtime)
+// EventLoop ...
+type EventLoop interface {
+	context.ContextedInstance
+	AddAPI(api APIConstructor)
+	CallHandler(function *goja.Callable, args ...goja.Value) (goja.Value, error)
+}
+
+// Script ...
+type Script interface {
+	getBody() string
+	getName() string
+}
+
+// APIConstructor ...
+type APIConstructor func(context context.Context, eventLoop EventLoop, runtime *goja.Runtime)
 
 type result struct {
 	value goja.Value
@@ -25,7 +39,16 @@ type script struct {
 	body string
 }
 
-func newScript(name string, body string) *script {
+func (script *script) getBody() string {
+	return script.body
+}
+
+func (script *script) getName() string {
+	return script.name
+}
+
+// NewScript ...
+func NewScript(name string, body string) Script {
 	return &script{
 		name: name,
 		body: body,
@@ -34,19 +57,20 @@ func newScript(name string, body string) *script {
 
 type eventLoop struct {
 	runtime  *goja.Runtime
-	apis     []apiConstructor
-	scripts  []*script
+	apis     []APIConstructor
+	scripts  []Script
 	handlers chan *handler
 }
 
-func (eventLoop *eventLoop) addAPI(api apiConstructor) {
+func (eventLoop *eventLoop) AddAPI(api APIConstructor) {
 	eventLoop.apis = append(eventLoop.apis, api)
 }
 
-func newEventLoop(runtime *goja.Runtime, scripts []*script) *eventLoop {
+// NewEventLoop ...
+func NewEventLoop(runtime *goja.Runtime, scripts []Script) EventLoop {
 	eventLoop := &eventLoop{
 		runtime:  runtime,
-		apis:     []apiConstructor{},
+		apis:     []APIConstructor{},
 		scripts:  scripts,
 		handlers: make(chan *handler),
 	}
@@ -62,9 +86,9 @@ func (eventLoop *eventLoop) Go(current context.Context) {
 	}
 
 	for _, script := range eventLoop.scripts {
-		_, err := eventLoop.runtime.RunString(script.body)
+		_, err := eventLoop.runtime.RunString(script.getBody())
 		if err != nil {
-			current.Log(1, fmt.Sprintf("%v: %v", script.name, err.Error()))
+			current.Log(1, fmt.Sprintf("%v: %v", script.getName(), err.Error()))
 			return
 		}
 	}
@@ -90,7 +114,7 @@ loop:
 	}
 }
 
-func (eventLoop *eventLoop) Call(function *goja.Callable, args ...goja.Value) (goja.Value, error) {
+func (eventLoop *eventLoop) CallHandler(function *goja.Callable, args ...goja.Value) (goja.Value, error) {
 
 	results := make(chan result)
 

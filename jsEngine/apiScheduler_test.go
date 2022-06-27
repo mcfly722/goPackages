@@ -1,7 +1,6 @@
 package jsEngine_test
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"testing"
@@ -12,33 +11,14 @@ import (
 	"github.com/mcfly722/goPackages/jsEngine"
 )
 
-func apiHandle(context context.Context, eventLoop jsEngine.EventLoop, runtime *goja.Runtime) {
-
-	handle := func(handler *goja.Callable, args ...goja.Value) {
-
-		value, err := (*handler)(nil, args...)
-		if err != nil {
-			fmt.Println(fmt.Sprintf("handler error:%v", err))
-		} else {
-			fmt.Println(fmt.Sprintf("handler returned value:%v", value))
-		}
-
-	}
-	runtime.Set("handle", handle)
-}
-
-func Test_CallHandler(t *testing.T) {
+func Test_SetInterval(t *testing.T) {
 
 	script := jsEngine.NewScript("test", `
-	function handler(param1, param2) {
-		 console.log('handler executed '+param1+ ','+param2)
+    timerId1 = setInterval(function(){
+    	console.log("timer1")
+    },1000)
 
-		 //someUnknownFunctionCall()
-
-		 return (param1 / param2)
-	}
-
-	handle(handler,2,3)
+    console.log("timer with id=" + timerId1 + " initialized")
 	`)
 
 	rootContext := context.NewRootContext(context.NewConsoleLogDebugger(100, true))
@@ -46,8 +26,7 @@ func Test_CallHandler(t *testing.T) {
 	eventLoop := jsEngine.NewEventLoop(goja.New(), []jsEngine.Script{script})
 
 	eventLoop.AddAPI(jsEngine.APIConsole)
-
-	eventLoop.AddAPI(apiHandle)
+	eventLoop.AddAPI(jsEngine.APIScheduler)
 
 	rootContext.NewContextFor(eventLoop, "jsEngine", "eventLoop")
 
@@ -61,8 +40,8 @@ func Test_CallHandler(t *testing.T) {
 		}()
 	}
 
-	{ // wait 1 second till exit
-		time.Sleep(1 * time.Second)
+	{ // wait 5 second till exit
+		time.Sleep(5 * time.Second)
 		rootContext.Log(2, "timeout")
 		rootContext.Cancel()
 	}

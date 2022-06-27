@@ -24,7 +24,7 @@ loop:
 		select {
 		case <-time.After(delay):
 			delay = time.Duration(time.Duration(timer.delayMS) * time.Millisecond)
-			_, err := timer.scheduler.eventLoop.Call(timer.handler)
+			_, err := timer.scheduler.eventLoop.CallHandler(timer.handler)
 			if err != nil {
 				current.Log(40, err.Error())
 			}
@@ -43,7 +43,7 @@ loop:
 type scheduler struct {
 	timers        map[int64]*timer
 	timersCounter int64
-	eventLoop     *eventLoop
+	eventLoop     EventLoop
 	ready         sync.Mutex
 }
 
@@ -75,7 +75,8 @@ func (scheduler *scheduler) deleteTimer(timerID int64) error {
 	return fmt.Errorf("there are no timers with id=%v", timerID)
 }
 
-func apiScheduler(context context.Context, eventLoop *eventLoop, runtime *goja.Runtime) {
+// APIScheduler ...
+func APIScheduler(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
 
 	scheduler := &scheduler{
 		timers:        make(map[int64]*timer, 0),

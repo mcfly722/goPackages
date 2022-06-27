@@ -10,7 +10,8 @@ type Console struct {
 	context context.Context
 }
 
-func apiConsole(context context.Context, eventLoop *eventLoop, runtime *goja.Runtime) {
+// APIConsole ...
+func APIConsole(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
 
 	log := runtime.NewObject()
 	log.Set("log", func(msg string) {
