@@ -9,6 +9,9 @@ import (
 	"github.com/mcfly722/goPackages/context"
 )
 
+// Scheduler ...
+type Scheduler struct{}
+
 type timer struct {
 	id        int64
 	delayMS   int64
@@ -75,8 +78,8 @@ func (scheduler *scheduler) deleteTimer(timerID int64) error {
 	return fmt.Errorf("there are no timers with id=%v", timerID)
 }
 
-// APIScheduler ...
-func APIScheduler(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
+// Constructor ...
+func (s Scheduler) Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
 
 	scheduler := &scheduler{
 		timers:        make(map[int64]*timer, 0),

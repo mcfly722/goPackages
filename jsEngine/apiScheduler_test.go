@@ -11,6 +11,12 @@ import (
 	"github.com/mcfly722/goPackages/jsEngine"
 )
 
+// enables js schuduler functionality
+func ExampleScheduler() {
+	eventLoop := jsEngine.NewEventLoop(goja.New(), []jsEngine.Script{})
+	eventLoop.Import(jsEngine.Scheduler{})
+}
+
 func Test_SetInterval(t *testing.T) {
 
 	script := jsEngine.NewScript("test", `
@@ -25,8 +31,8 @@ func Test_SetInterval(t *testing.T) {
 
 	eventLoop := jsEngine.NewEventLoop(goja.New(), []jsEngine.Script{script})
 
-	eventLoop.AddAPI(jsEngine.APIConsole)
-	eventLoop.AddAPI(jsEngine.APIScheduler)
+	eventLoop.Import(jsEngine.Console{})
+	eventLoop.Import(jsEngine.Scheduler{})
 
 	rootContext.NewContextFor(eventLoop, "jsEngine", "eventLoop")
 

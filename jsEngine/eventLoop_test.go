@@ -12,7 +12,9 @@ import (
 	"github.com/mcfly722/goPackages/jsEngine"
 )
 
-func apiHandle(context context.Context, eventLoop jsEngine.EventLoop, runtime *goja.Runtime) {
+type testModule struct{}
+
+func (module testModule) Constructor(context context.Context, eventLoop jsEngine.EventLoop, runtime *goja.Runtime) {
 
 	handle := func(handler *goja.Callable, args ...goja.Value) {
 
@@ -45,9 +47,8 @@ func Test_CallHandler(t *testing.T) {
 
 	eventLoop := jsEngine.NewEventLoop(goja.New(), []jsEngine.Script{script})
 
-	eventLoop.AddAPI(jsEngine.APIConsole)
-
-	eventLoop.AddAPI(apiHandle)
+	eventLoop.Import(jsEngine.Console{})
+	eventLoop.Import(testModule{})
 
 	rootContext.NewContextFor(eventLoop, "jsEngine", "eventLoop")
 

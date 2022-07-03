@@ -5,13 +5,11 @@ import (
 	"github.com/mcfly722/goPackages/context"
 )
 
-// Console ...
-type Console struct {
-	context context.Context
-}
+// Console module
+type Console struct{}
 
-// APIConsole ...
-func APIConsole(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
+// Constructor ...
+func (console Console) Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
 
 	log := runtime.NewObject()
 	log.Set("log", func(msg string) {

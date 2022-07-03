@@ -10,7 +10,7 @@ import (
 // EventLoop ...
 type EventLoop interface {
 	context.ContextedInstance
-	AddAPI(api APIConstructor)
+	Import(module Module)
 	CallHandler(function *goja.Callable, args ...goja.Value) (goja.Value, error)
 }
 
@@ -20,8 +20,10 @@ type Script interface {
 	getName() string
 }
 
-// APIConstructor ...
-type APIConstructor func(context context.Context, eventLoop EventLoop, runtime *goja.Runtime)
+// Module ...
+type Module interface {
+	Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime)
+}
 
 type result struct {
 	value goja.Value
@@ -57,20 +59,21 @@ func NewScript(name string, body string) Script {
 
 type eventLoop struct {
 	runtime  *goja.Runtime
-	apis     []APIConstructor
+	modules  []Module
 	scripts  []Script
 	handlers chan *handler
 }
 
-func (eventLoop *eventLoop) AddAPI(api APIConstructor) {
-	eventLoop.apis = append(eventLoop.apis, api)
+// Import ...
+func (eventLoop *eventLoop) Import(module Module) {
+	eventLoop.modules = append(eventLoop.modules, module)
 }
 
 // NewEventLoop ...
 func NewEventLoop(runtime *goja.Runtime, scripts []Script) EventLoop {
 	eventLoop := &eventLoop{
 		runtime:  runtime,
-		apis:     []APIConstructor{},
+		modules:  []Module{},
 		scripts:  scripts,
 		handlers: make(chan *handler),
 	}
@@ -81,8 +84,8 @@ func NewEventLoop(runtime *goja.Runtime, scripts []Script) EventLoop {
 // Go ...
 func (eventLoop *eventLoop) Go(current context.Context) {
 
-	for _, api := range eventLoop.apis {
-		api(current, eventLoop, eventLoop.runtime)
+	for _, module := range eventLoop.modules {
+		module.Constructor(current, eventLoop, eventLoop.runtime)
 	}
 
 	for _, script := range eventLoop.scripts {

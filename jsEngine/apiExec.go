@@ -11,8 +11,11 @@ import (
 	"github.com/mcfly722/goPackages/context"
 )
 
-// JSCmd ...
-type JSCmd struct {
+// Exec ...
+type Exec struct{}
+
+// Cmd ...
+type Cmd struct {
 	name                 string
 	args                 []string
 	timeout              time.Duration
@@ -25,8 +28,8 @@ type JSCmd struct {
 	ready sync.Mutex
 }
 
-// JSStartedProcess ...
-type JSStartedProcess struct{}
+// Process ...
+type Process struct{}
 
 type process struct {
 	expiredAt            time.Time
@@ -39,12 +42,12 @@ type process struct {
 	runtime              *goja.Runtime
 }
 
-// APIExec ...
-func APIExec(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
+// Constructor ...
+func (exec Exec) Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
 	runtime.SetFieldNameMapper(goja.UncapFieldNameMapper())
 
-	newCommand := func(name string, args []string) *JSCmd {
-		return &JSCmd{
+	newCommand := func(name string, args []string) *Cmd {
+		return &Cmd{
 			name:      name,
 			args:      args,
 			context:   context,
@@ -54,14 +57,14 @@ func APIExec(context context.Context, eventLoop EventLoop, runtime *goja.Runtime
 		}
 	}
 
-	exec := runtime.NewObject()
+	executer := runtime.NewObject()
 
-	exec.Set("process", newCommand)
-	runtime.Set("exec", exec)
+	executer.Set("process", newCommand)
+	runtime.Set("exec", executer)
 }
 
 // SetTimeoutMs ...
-func (cmd *JSCmd) SetTimeoutMs(timeoutMs int64) *JSCmd {
+func (cmd *Cmd) SetTimeoutMs(timeoutMs int64) *Cmd {
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
 
@@ -69,8 +72,8 @@ func (cmd *JSCmd) SetTimeoutMs(timeoutMs int64) *JSCmd {
 	return cmd
 }
 
-// OnDone ...
-func (cmd *JSCmd) OnDone(handler *goja.Callable) *JSCmd {
+// SetOnDone ...
+func (cmd *Cmd) SetOnDone(handler *goja.Callable) *Cmd {
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
 
@@ -78,8 +81,8 @@ func (cmd *JSCmd) OnDone(handler *goja.Callable) *JSCmd {
 	return cmd
 }
 
-// OnStdOut ...
-func (cmd *JSCmd) OnStdOut(handler *goja.Callable) *JSCmd {
+// SetOnStdOut ...
+func (cmd *Cmd) SetOnStdOut(handler *goja.Callable) *Cmd {
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
 
@@ -88,7 +91,7 @@ func (cmd *JSCmd) OnStdOut(handler *goja.Callable) *JSCmd {
 }
 
 // Start ...
-func (cmd *JSCmd) Start() *JSStartedProcess {
+func (cmd *Cmd) Start() *Process {
 
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
@@ -154,7 +157,7 @@ func (cmd *JSCmd) Start() *JSStartedProcess {
 		close(finish)
 	}(proc, command, proc.finish)
 
-	startedProcess := &JSStartedProcess{}
+	startedProcess := &Process{}
 
 	return startedProcess
 }

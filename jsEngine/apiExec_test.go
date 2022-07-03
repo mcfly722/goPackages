@@ -11,6 +11,12 @@ import (
 	"github.com/mcfly722/goPackages/jsEngine"
 )
 
+// enables js execution module functionality
+func ExampleExec() {
+	eventLoop := jsEngine.NewEventLoop(goja.New(), []jsEngine.Script{})
+	eventLoop.Import(jsEngine.Exec{})
+}
+
 func Test_ExecProcess(t *testing.T) {
 
 	script := jsEngine.NewScript("test", `
@@ -22,7 +28,7 @@ func Test_ExecProcess(t *testing.T) {
 				console.log("content="+content)
 		}
 
-	  p = exec.process("ping.exe", ["-n","2", "0.0.0.0"]).setTimeoutMs(30*1000).onDone(onDone).onStdOut(onStdout).start()
+	  p = exec.process("ping.exe", ["-n","2", "0.0.0.0"]).setTimeoutMs(30*1000).setOnDone(onDone).setOnStdOut(onStdout).start()
 
 	`)
 
@@ -30,9 +36,9 @@ func Test_ExecProcess(t *testing.T) {
 
 	eventLoop := jsEngine.NewEventLoop(goja.New(), []jsEngine.Script{script})
 
-	eventLoop.AddAPI(jsEngine.APIConsole)
-	eventLoop.AddAPI(jsEngine.APIScheduler)
-	eventLoop.AddAPI(jsEngine.APIExec)
+	eventLoop.Import(jsEngine.Console{})
+	eventLoop.Import(jsEngine.Scheduler{})
+	eventLoop.Import(jsEngine.Exec{})
 
 	rootContext.NewContextFor(eventLoop, "jsEngine", "eventLoop")
 
