@@ -2,6 +2,7 @@ package jsEngine
 
 import (
 	"bufio"
+	"errors"
 	"os"
 	"os/exec"
 	"sync"
@@ -37,6 +38,7 @@ type Process struct{}
 
 type process struct {
 	exec                 *Exec
+	command              *exec.Cmd
 	expiredAt            time.Time
 	exitCode             int
 	finish               chan struct{}
@@ -106,6 +108,8 @@ func (cmd *Command) StartNewProcess() *Process {
 
 	command := exec.Command(cmd.name, cmd.args...)
 
+	setCommandParameters(command)
+
 	if len(cmd.directory) > 0 {
 		_, err := os.Stat(cmd.directory)
 		if err != nil {
@@ -116,6 +120,7 @@ func (cmd *Command) StartNewProcess() *Process {
 
 	proc := &process{
 		exec:                 cmd.exec,
+		command:              command,
 		exitCode:             -1,
 		finish:               make(chan struct{}),
 		stdoutStrings:        make(chan string),
@@ -215,6 +220,12 @@ loop:
 
 	if process.onDoneHandler != nil {
 		process.exec.eventLoop.CallHandler(process.onDoneHandler, process.exec.runtime.ToValue(process.exitCode))
+	}
+
+	if err := process.command.Process.Kill(); err != nil {
+		if !errors.Is(err, syscall.EINVAL) {
+			current.Log(50, "killing process", err.Error())
+		}
 	}
 
 }
