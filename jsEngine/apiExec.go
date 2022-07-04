@@ -12,18 +12,21 @@ import (
 )
 
 // Exec ...
-type Exec struct{}
+type Exec struct {
+	context   context.Context
+	eventLoop EventLoop
+	runtime   *goja.Runtime
+}
 
 // Cmd ...
 type Cmd struct {
+	exec                 *Exec
 	name                 string
 	args                 []string
+	directory            string
 	timeout              time.Duration
 	onDoneHandler        *goja.Callable
 	stdoutStringsHandler *goja.Callable
-	context              context.Context
-	eventLoop            EventLoop
-	runtime              *goja.Runtime
 
 	ready sync.Mutex
 }
@@ -32,35 +35,43 @@ type Cmd struct {
 type Process struct{}
 
 type process struct {
+	exec                 *Exec
 	expiredAt            time.Time
 	exitCode             int
 	finish               chan struct{}
 	stdoutStrings        chan string
 	stdoutStringsHandler *goja.Callable
 	onDoneHandler        *goja.Callable
-	eventLoop            EventLoop
-	runtime              *goja.Runtime
+	//	eventLoop            EventLoop
+	//runtime              *goja.Runtime
 }
 
 // Constructor ...
 func (exec Exec) Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
-	runtime.SetFieldNameMapper(goja.UncapFieldNameMapper())
+	//executer := runtime.NewObject()
+	//executer.Set("NewCommand", NewCommand)
+	runtime.Set("Exec", &Exec{
+		context:   context,
+		eventLoop: eventLoop,
+		runtime:   runtime,
+	})
+}
 
-	newCommand := func(name string, args []string) *Cmd {
-		return &Cmd{
-			name:      name,
-			args:      args,
-			context:   context,
-			eventLoop: eventLoop,
-			runtime:   runtime,
-			timeout:   0,
-		}
+// NewCommand ...
+func (exec *Exec) NewCommand(name string, args []string) *Cmd {
+	return &Cmd{
+		exec:      exec,
+		name:      name,
+		args:      args,
+		directory: "",
+		timeout:   0,
 	}
+}
 
-	executer := runtime.NewObject()
-
-	executer.Set("process", newCommand)
-	runtime.Set("exec", executer)
+// SetPath ...
+func (cmd *Cmd) SetPath(directory string) *Cmd {
+	cmd.directory = directory
+	return cmd
 }
 
 // SetTimeoutMs ...
@@ -81,8 +92,8 @@ func (cmd *Cmd) SetOnDone(handler *goja.Callable) *Cmd {
 	return cmd
 }
 
-// SetOnStdOut ...
-func (cmd *Cmd) SetOnStdOut(handler *goja.Callable) *Cmd {
+// SetOnStdString ...
+func (cmd *Cmd) SetOnStdoutString(handler *goja.Callable) *Cmd {
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
 
@@ -98,21 +109,26 @@ func (cmd *Cmd) Start() *Process {
 
 	command := exec.Command(cmd.name, cmd.args...)
 
+	if len(cmd.directory) > 0 {
+		command.Dir = cmd.directory
+	}
+
 	proc := &process{
+		exec:                 cmd.exec,
 		exitCode:             -1,
 		finish:               make(chan struct{}),
 		stdoutStrings:        make(chan string),
 		stdoutStringsHandler: cmd.stdoutStringsHandler,
 		onDoneHandler:        cmd.onDoneHandler,
-		eventLoop:            cmd.eventLoop,
-		runtime:              cmd.runtime,
+		//		eventLoop:            cmd.eventLoop,
+		//		runtime:              cmd.runtime,
 	}
 
 	if cmd.stdoutStringsHandler != nil {
 
 		pipe, err := command.StdoutPipe()
 		if err != nil {
-			panic(cmd.runtime.ToValue(err.Error()))
+			panic(cmd.exec.runtime.ToValue(err.Error()))
 		}
 
 		scanner := bufio.NewScanner(pipe)
@@ -128,16 +144,16 @@ func (cmd *Cmd) Start() *Process {
 
 	err := command.Start()
 	if err != nil {
-		panic(cmd.runtime.ToValue(err.Error()))
+		panic(cmd.exec.runtime.ToValue(err.Error()))
 	}
 
 	if cmd.timeout != 0 {
 		proc.expiredAt = time.Now().Add(cmd.timeout)
 	}
 
-	_, err = cmd.context.NewContextFor(proc, cmd.name, "process")
+	_, err = cmd.exec.context.NewContextFor(proc, cmd.name, "process")
 	if err != nil {
-		panic(cmd.runtime.ToValue(err.Error()))
+		panic(cmd.exec.runtime.ToValue(err.Error()))
 	}
 
 	go func(process *process, cmd *exec.Cmd, finish chan struct{}) {
@@ -181,7 +197,7 @@ loop:
 		case stdoutString, opened := <-process.stdoutStrings:
 			if opened {
 				if process.stdoutStringsHandler != nil {
-					process.eventLoop.CallHandler(process.stdoutStringsHandler, process.runtime.ToValue(stdoutString))
+					process.exec.eventLoop.CallHandler(process.stdoutStringsHandler, process.exec.runtime.ToValue(stdoutString))
 				}
 			}
 			break
@@ -199,7 +215,7 @@ loop:
 	}
 
 	if process.onDoneHandler != nil {
-		process.eventLoop.CallHandler(process.onDoneHandler, process.runtime.ToValue(process.exitCode))
+		process.exec.eventLoop.CallHandler(process.onDoneHandler, process.exec.runtime.ToValue(process.exitCode))
 	}
 
 }

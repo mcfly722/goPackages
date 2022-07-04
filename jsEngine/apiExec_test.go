@@ -28,7 +28,7 @@ func Test_ExecProcess(t *testing.T) {
 				console.log("content="+content)
 		}
 
-	  p = exec.process("ping.exe", ["-n","2", "0.0.0.0"]).setTimeoutMs(30*1000).setOnDone(onDone).setOnStdOut(onStdout).start()
+		p = Exec.NewCommand("ping.exe", ["-n","2", "0.0.0.0"]).SetTimeoutMs(30*1000).SetOnDone(onDone).SetOnStdoutString(onStdout).SetPath('C:/Users').Start()
 
 	`)
 
@@ -47,15 +47,17 @@ func Test_ExecProcess(t *testing.T) {
 		signal.Notify(ctrlC, os.Interrupt)
 		go func() {
 			<-ctrlC
-			rootContext.Log(2, "CTRL+C signal")
+			rootContext.Log(3, "CTRL+C signal")
 			rootContext.Cancel()
 		}()
 	}
 
 	{ // wait 5 second till exit
-		time.Sleep(10 * time.Second)
-		rootContext.Log(1, "timeout")
-		rootContext.Cancel()
+		go func() {
+			time.Sleep(10 * time.Second)
+			rootContext.Log(1, "timeout")
+			rootContext.Cancel()
+		}()
 	}
 
 	rootContext.Wait()
