@@ -2,6 +2,7 @@ package jsEngine
 
 import (
 	"bufio"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -42,14 +43,10 @@ type process struct {
 	stdoutStrings        chan string
 	stdoutStringsHandler *goja.Callable
 	onDoneHandler        *goja.Callable
-	//	eventLoop            EventLoop
-	//runtime              *goja.Runtime
 }
 
 // Constructor ...
 func (exec Exec) Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
-	//executer := runtime.NewObject()
-	//executer.Set("NewCommand", NewCommand)
 	runtime.Set("Exec", &Exec{
 		context:   context,
 		eventLoop: eventLoop,
@@ -110,6 +107,10 @@ func (cmd *Command) StartNewProcess() *Process {
 	command := exec.Command(cmd.name, cmd.args...)
 
 	if len(cmd.directory) > 0 {
+		_, err := os.Stat(cmd.directory)
+		if err != nil {
+			panic(cmd.exec.runtime.ToValue(err.Error()))
+		}
 		command.Dir = cmd.directory
 	}
 
@@ -120,8 +121,6 @@ func (cmd *Command) StartNewProcess() *Process {
 		stdoutStrings:        make(chan string),
 		stdoutStringsHandler: cmd.stdoutStringsHandler,
 		onDoneHandler:        cmd.onDoneHandler,
-		//		eventLoop:            cmd.eventLoop,
-		//		runtime:              cmd.runtime,
 	}
 
 	if cmd.stdoutStringsHandler != nil {
