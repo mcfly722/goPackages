@@ -7,8 +7,9 @@ import (
 	"syscall"
 )
 
-func setCommandParameters(command *exec.Cmd) {
+func setCommandParameters(command *exec.Cmd) *exec.Cmd {
 	command.SysProcAttr = &syscall.SysProcAttr{ // start command to own process (to prevent ctrl+c signal from parent)
 		Setpgid: true,
 	}
+	return command
 }

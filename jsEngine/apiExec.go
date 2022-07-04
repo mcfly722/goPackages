@@ -108,7 +108,7 @@ func (cmd *Command) StartNewProcess() *Process {
 
 	command := exec.Command(cmd.name, cmd.args...)
 
-	setCommandParameters(command)
+	command = setCommandParameters(command)
 
 	if len(cmd.directory) > 0 {
 		_, err := os.Stat(cmd.directory)
