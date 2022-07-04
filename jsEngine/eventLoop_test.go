@@ -33,7 +33,7 @@ func Test_CallHandler(t *testing.T) {
 
 	script := jsEngine.NewScript("test", `
 	function handler(param1, param2) {
-		 console.log('handler executed '+param1+ ','+param2)
+		 Console.Log('handler executed '+param1+ ','+param2)
 
 		 //someUnknownFunctionCall()
 

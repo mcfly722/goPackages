@@ -6,15 +6,22 @@ import (
 )
 
 // Console module
-type Console struct{}
+type Console struct {
+	context   context.Context
+	eventLoop EventLoop
+	runtime   *goja.Runtime
+}
+
+// Log ...
+func (console *Console) Log(msg string) {
+	console.context.Log(50, msg)
+}
 
 // Constructor ...
 func (console Console) Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
-
-	log := runtime.NewObject()
-	log.Set("log", func(msg string) {
-		context.Log(50, msg)
+	runtime.Set("Console", &Console{
+		context:   context,
+		eventLoop: eventLoop,
+		runtime:   runtime,
 	})
-
-	runtime.Set("console", log)
 }

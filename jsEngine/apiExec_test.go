@@ -21,10 +21,10 @@ func Test_ExecProcess(t *testing.T) {
 
 	script := jsEngine.NewScript("test", `
 		function onDone(exitCode){
-				console.log("exitCode="+exitCode)
+				Console.Log("exitCode="+exitCode)
 		}
 		function onStdout(content){
-				console.log("content="+content)
+				Console.Log("content="+content)
 		}
 		p = Exec.NewCommand("ping.exe", ["-n","2", "0.0.0.0"]).SetTimeoutMs(30*1000).SetOnDone(onDone).SetOnStdoutString(onStdout).SetPath('C:/Users').StartNewProcess()
 

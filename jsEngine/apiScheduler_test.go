@@ -21,10 +21,10 @@ func Test_SetInterval(t *testing.T) {
 
 	script := jsEngine.NewScript("test", `
     timerId1 = setInterval(function(){
-    	console.log("timer1")
+    	Console.Log("timer1")
     },1000)
 
-    console.log("timer with id=" + timerId1 + " initialized")
+    Console.Log("timer with id=" + timerId1 + " initialized")
 	`)
 
 	rootContext := context.NewRootContext(context.NewConsoleLogDebugger(100, true))
