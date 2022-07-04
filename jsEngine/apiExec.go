@@ -35,7 +35,7 @@ type Command struct {
 
 // Process ...
 type Process struct {
-	process
+	process *process
 }
 
 type process struct {
@@ -70,73 +70,73 @@ func (exec *Exec) NewCommand(name string, args []string) *Command {
 }
 
 // SetPath ...
-func (cmd *Command) SetPath(directory string) *Command {
-	cmd.directory = directory
-	return cmd
+func (command *Command) SetPath(directory string) *Command {
+	command.directory = directory
+	return command
 }
 
 // SetTimeoutMs ...
-func (cmd *Command) SetTimeoutMs(timeoutMs int64) *Command {
-	cmd.ready.Lock()
-	defer cmd.ready.Unlock()
+func (command *Command) SetTimeoutMs(timeoutMs int64) *Command {
+	command.ready.Lock()
+	defer command.ready.Unlock()
 
-	cmd.timeout = time.Duration(timeoutMs) * time.Millisecond
-	return cmd
+	command.timeout = time.Duration(timeoutMs) * time.Millisecond
+	return command
 }
 
 // SetOnDone ...
-func (cmd *Command) SetOnDone(handler *goja.Callable) *Command {
-	cmd.ready.Lock()
-	defer cmd.ready.Unlock()
+func (command *Command) SetOnDone(handler *goja.Callable) *Command {
+	command.ready.Lock()
+	defer command.ready.Unlock()
 
-	cmd.onDoneHandler = handler
-	return cmd
+	command.onDoneHandler = handler
+	return command
 }
 
 // SetOnStdoutString ...
-func (cmd *Command) SetOnStdoutString(handler *goja.Callable) *Command {
-	cmd.ready.Lock()
-	defer cmd.ready.Unlock()
+func (command *Command) SetOnStdoutString(handler *goja.Callable) *Command {
+	command.ready.Lock()
+	defer command.ready.Unlock()
 
-	cmd.stdoutStringsHandler = handler
-	return cmd
+	command.stdoutStringsHandler = handler
+	return command
 }
 
 // StartNewProcess ...
-func (cmd *Command) StartNewProcess() *Process {
+func (command *Command) StartNewProcess() *Process {
 
-	cmd.ready.Lock()
-	defer cmd.ready.Unlock()
+	command.ready.Lock()
+	defer command.ready.Unlock()
 
-	command := exec.Command(cmd.name, cmd.args...)
+	cmd := exec.Command(command.name, command.args...)
 
-	command = setCommandParameters(command)
+	cmd = setCommandParameters(cmd)
 
-	if len(cmd.directory) > 0 {
-		_, err := os.Stat(cmd.directory)
+	if len(command.directory) > 0 {
+		_, err := os.Stat(command.directory)
 		if err != nil {
-			panic(cmd.exec.runtime.ToValue(err.Error()))
+			panic(command.exec.runtime.ToValue(err.Error()))
 		}
-		command.Dir = cmd.directory
+		cmd.Dir = command.directory
 	}
 
 	started := &Process{
-		process: process{
-			exec:                 cmd.exec,
-			command:              command,
+		process: &process{
+			exec:                 command.exec,
+			command:              cmd,
 			exitCode:             -1,
 			finish:               make(chan struct{}),
 			stdoutStrings:        make(chan string),
-			stdoutStringsHandler: cmd.stdoutStringsHandler,
-			onDoneHandler:        cmd.onDoneHandler,
+			stdoutStringsHandler: command.stdoutStringsHandler,
+			onDoneHandler:        command.onDoneHandler,
 		},
 	}
 
-	if cmd.stdoutStringsHandler != nil {
+	if command.stdoutStringsHandler != nil {
 
-		pipe, err := command.StdoutPipe()
+		pipe, err := cmd.StdoutPipe()
 		if err != nil {
-			panic(cmd.exec.runtime.ToValue(err.Error()))
+			panic(command.exec.runtime.ToValue(err.Error()))
 		}
 
 		scanner := bufio.NewScanner(pipe)
@@ -150,22 +150,22 @@ func (cmd *Command) StartNewProcess() *Process {
 		}(scanner, started.process.stdoutStrings)
 	}
 
-	err := command.Start()
+	err := cmd.Start()
 	if err != nil {
-		panic(cmd.exec.runtime.ToValue(err.Error()))
+		panic(command.exec.runtime.ToValue(err.Error()))
 	}
 
-	if cmd.timeout != 0 {
-		started.process.expiredAt = time.Now().Add(cmd.timeout)
+	if command.timeout != 0 {
+		started.process.expiredAt = time.Now().Add(command.timeout)
 	}
 
-	_, err = cmd.exec.context.NewContextFor(&started.process, cmd.name, "process")
+	_, err = command.exec.context.NewContextFor(started.process, command.name, "process")
 	if err != nil {
-		panic(cmd.exec.runtime.ToValue(err.Error()))
+		panic(command.exec.runtime.ToValue(err.Error()))
 	}
 
-	go func(process *process, cmd *exec.Cmd, finish chan struct{}) {
-		if err := cmd.Wait(); err != nil {
+	go func(process *process, command *exec.Cmd, finish chan struct{}) {
+		if err := command.Wait(); err != nil {
 			if exiterr, ok := err.(*exec.ExitError); ok {
 				// The program has exited with an exit code != 0
 
@@ -179,7 +179,7 @@ func (cmd *Command) StartNewProcess() *Process {
 			}
 		}
 		close(finish)
-	}(&started.process, command, started.process.finish)
+	}(started.process, cmd, started.process.finish)
 
 	return started
 }
@@ -233,11 +233,10 @@ loop:
 }
 
 // Stop ...
-func (process *Process) Stop() {
-	if err := process.command.Process.Kill(); err != nil {
+func (started *Process) Stop() {
+	if err := started.process.command.Process.Kill(); err != nil {
 		if !errors.Is(err, syscall.EINVAL) {
-			panic(process.exec.runtime.ToValue(err.Error()))
+			panic(started.process.exec.runtime.ToValue(err.Error()))
 		}
 	}
-
 }
