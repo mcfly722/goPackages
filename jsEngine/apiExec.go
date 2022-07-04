@@ -34,7 +34,9 @@ type Command struct {
 }
 
 // Process ...
-type Process struct{}
+type Process struct {
+	process
+}
 
 type process struct {
 	exec                 *Exec
@@ -118,14 +120,16 @@ func (cmd *Command) StartNewProcess() *Process {
 		command.Dir = cmd.directory
 	}
 
-	proc := &process{
-		exec:                 cmd.exec,
-		command:              command,
-		exitCode:             -1,
-		finish:               make(chan struct{}),
-		stdoutStrings:        make(chan string),
-		stdoutStringsHandler: cmd.stdoutStringsHandler,
-		onDoneHandler:        cmd.onDoneHandler,
+	started := &Process{
+		process: process{
+			exec:                 cmd.exec,
+			command:              command,
+			exitCode:             -1,
+			finish:               make(chan struct{}),
+			stdoutStrings:        make(chan string),
+			stdoutStringsHandler: cmd.stdoutStringsHandler,
+			onDoneHandler:        cmd.onDoneHandler,
+		},
 	}
 
 	if cmd.stdoutStringsHandler != nil {
@@ -143,7 +147,7 @@ func (cmd *Command) StartNewProcess() *Process {
 				stringsOut <- scanner.Text()
 			}
 			close(stringsOut)
-		}(scanner, proc.stdoutStrings)
+		}(scanner, started.process.stdoutStrings)
 	}
 
 	err := command.Start()
@@ -152,10 +156,10 @@ func (cmd *Command) StartNewProcess() *Process {
 	}
 
 	if cmd.timeout != 0 {
-		proc.expiredAt = time.Now().Add(cmd.timeout)
+		started.process.expiredAt = time.Now().Add(cmd.timeout)
 	}
 
-	_, err = cmd.exec.context.NewContextFor(proc, cmd.name, "process")
+	_, err = cmd.exec.context.NewContextFor(&started.process, cmd.name, "process")
 	if err != nil {
 		panic(cmd.exec.runtime.ToValue(err.Error()))
 	}
@@ -175,11 +179,9 @@ func (cmd *Command) StartNewProcess() *Process {
 			}
 		}
 		close(finish)
-	}(proc, command, proc.finish)
+	}(&started.process, command, started.process.finish)
 
-	startedProcess := &Process{}
-
-	return startedProcess
+	return started
 }
 
 // Go ...
@@ -225,6 +227,16 @@ loop:
 	if err := process.command.Process.Kill(); err != nil {
 		if !errors.Is(err, syscall.EINVAL) {
 			current.Log(50, "killing process", err.Error())
+		}
+	}
+
+}
+
+// Stop ...
+func (process *Process) Stop() {
+	if err := process.command.Process.Kill(); err != nil {
+		if !errors.Is(err, syscall.EINVAL) {
+			panic(process.exec.runtime.ToValue(err.Error()))
 		}
 	}
 

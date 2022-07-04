@@ -27,6 +27,7 @@ func Test_ExecProcess(t *testing.T) {
 				console.log("content="+content)
 		}
 		p = Exec.NewCommand("ping.exe", ["-n","2", "0.0.0.0"]).SetTimeoutMs(30*1000).SetOnDone(onDone).SetOnStdoutString(onStdout).SetPath('C:/Users').StartNewProcess()
+
 	`)
 
 	rootContext := context.NewRootContext(context.NewConsoleLogDebugger(100, true))
