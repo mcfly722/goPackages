@@ -18,8 +18,8 @@ type Exec struct {
 	runtime   *goja.Runtime
 }
 
-// Cmd ...
-type Cmd struct {
+// Command ...
+type Command struct {
 	exec                 *Exec
 	name                 string
 	args                 []string
@@ -58,8 +58,8 @@ func (exec Exec) Constructor(context context.Context, eventLoop EventLoop, runti
 }
 
 // NewCommand ...
-func (exec *Exec) NewCommand(name string, args []string) *Cmd {
-	return &Cmd{
+func (exec *Exec) NewCommand(name string, args []string) *Command {
+	return &Command{
 		exec:      exec,
 		name:      name,
 		args:      args,
@@ -69,13 +69,13 @@ func (exec *Exec) NewCommand(name string, args []string) *Cmd {
 }
 
 // SetPath ...
-func (cmd *Cmd) SetPath(directory string) *Cmd {
+func (cmd *Command) SetPath(directory string) *Command {
 	cmd.directory = directory
 	return cmd
 }
 
 // SetTimeoutMs ...
-func (cmd *Cmd) SetTimeoutMs(timeoutMs int64) *Cmd {
+func (cmd *Command) SetTimeoutMs(timeoutMs int64) *Command {
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
 
@@ -84,7 +84,7 @@ func (cmd *Cmd) SetTimeoutMs(timeoutMs int64) *Cmd {
 }
 
 // SetOnDone ...
-func (cmd *Cmd) SetOnDone(handler *goja.Callable) *Cmd {
+func (cmd *Command) SetOnDone(handler *goja.Callable) *Command {
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
 
@@ -92,8 +92,8 @@ func (cmd *Cmd) SetOnDone(handler *goja.Callable) *Cmd {
 	return cmd
 }
 
-// SetOnStdString ...
-func (cmd *Cmd) SetOnStdoutString(handler *goja.Callable) *Cmd {
+// SetOnStdoutString ...
+func (cmd *Command) SetOnStdoutString(handler *goja.Callable) *Command {
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
 
@@ -101,8 +101,8 @@ func (cmd *Cmd) SetOnStdoutString(handler *goja.Callable) *Cmd {
 	return cmd
 }
 
-// Start ...
-func (cmd *Cmd) Start() *Process {
+// StartNewProcess ...
+func (cmd *Command) StartNewProcess() *Process {
 
 	cmd.ready.Lock()
 	defer cmd.ready.Unlock()
