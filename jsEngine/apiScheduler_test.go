@@ -19,12 +19,21 @@ func ExampleScheduler() {
 
 func Test_SetInterval(t *testing.T) {
 
-	script := jsEngine.NewScript("test", `
-    timerId1 = setInterval(function(){
-    	Console.Log("timer1")
-    },1000)
+	script := jsEngine.NewScript("test 1", `
 
-    Console.Log("timer with id=" + timerId1 + " initialized")
+		var count = 0;
+
+		var ticker = Scheduler.NewTicker(1*1000, function(){
+			count++
+
+			if (count>4) {
+				Console.Log("stop")
+				ticker.Stop()
+			} else {
+				Console.Log("timer"+count)
+			}
+
+    }).Start()
 	`)
 
 	rootContext := context.NewRootContext(context.NewConsoleLogDebugger(100, true))
@@ -46,10 +55,12 @@ func Test_SetInterval(t *testing.T) {
 		}()
 	}
 
-	{ // wait 5 second till exit
-		time.Sleep(5 * time.Second)
-		rootContext.Log(2, "timeout")
-		rootContext.Cancel()
+	{ // wait 10 second till exit
+		go func() {
+			time.Sleep(10 * time.Second)
+			rootContext.Log(1, "timeout")
+			rootContext.Cancel()
+		}()
 	}
 
 	rootContext.Wait()

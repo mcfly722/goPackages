@@ -1,7 +1,6 @@
 package jsEngine
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -10,97 +9,124 @@ import (
 )
 
 // Scheduler ...
-type Scheduler struct{}
-
-type timer struct {
-	id        int64
-	delayMS   int64
-	scheduler *scheduler
-	handler   *goja.Callable
+type Scheduler struct {
+	context   context.Context
+	eventLoop EventLoop
+	runtime   *goja.Runtime
 }
 
-// Go ...
-func (timer *timer) Go(current context.Context) {
-	delay := time.Duration(0)
+// Constructor ...
+func (scheduler Scheduler) Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
+	runtime.Set("Scheduler", &Scheduler{
+		context:   context,
+		eventLoop: eventLoop,
+		runtime:   runtime,
+	})
+}
+
+// Ticker ...
+type Ticker struct {
+	scheduler  *Scheduler
+	intervalMs int64
+	spreadMs   int64
+	handler    *goja.Callable
+
+	ready sync.Mutex
+}
+
+// StartedTicker ...
+type StartedTicker struct {
+	ticker *activeTicker
+}
+
+type activeTicker struct {
+	scheduler     *Scheduler
+	intervalMs    int64
+	spreadMs      int64
+	handler       *goja.Callable
+	opened        chan struct{}
+	alreadyClosed bool
+
+	ready sync.Mutex
+}
+
+// NewTicker ...
+func (scheduler *Scheduler) NewTicker(intervalMs int64, handler *goja.Callable) *Ticker {
+	return &Ticker{
+		scheduler:  scheduler,
+		intervalMs: intervalMs,
+		spreadMs:   0,
+		handler:    handler,
+	}
+}
+
+// SetInitialSpread ...
+func (ticker *Ticker) SetInitialSpread(spreadMs int64) *Ticker {
+	ticker.ready.Lock()
+	defer ticker.ready.Unlock()
+	ticker.spreadMs = spreadMs
+	return ticker
+}
+
+// Start ...
+func (ticker *Ticker) Start() *StartedTicker {
+	ticker.ready.Lock()
+	defer ticker.ready.Unlock()
+
+	started := &StartedTicker{
+		ticker: &activeTicker{
+			scheduler:     ticker.scheduler,
+			intervalMs:    ticker.intervalMs,
+			spreadMs:      ticker.spreadMs,
+			handler:       ticker.handler,
+			opened:        make(chan struct{}),
+			alreadyClosed: false,
+		},
+	}
+
+	_, err := ticker.scheduler.context.NewContextFor(started.ticker, "ticker", "ticker")
+	if err != nil {
+		panic(ticker.scheduler.runtime.ToValue(err.Error()))
+	}
+
+	return started
+}
+
+func (ticker *activeTicker) Go(current context.Context) {
+	delay := time.Duration(time.Duration(ticker.spreadMs) * time.Millisecond)
 loop:
 	for {
 		select {
-		case <-time.After(delay):
-			delay = time.Duration(time.Duration(timer.delayMS) * time.Millisecond)
-			_, err := timer.scheduler.eventLoop.CallHandler(timer.handler)
-			if err != nil {
-				current.Log(40, err.Error())
-			}
-			break
 		case _, opened := <-current.Opened():
 			if !opened {
 				break loop
 			}
+			break
+		case _, opened := <-ticker.opened:
+			if !opened {
+				current.Cancel()
+			}
+			break
+		case <-time.After(delay):
+			delay = time.Duration(time.Duration(ticker.intervalMs) * time.Millisecond)
+			_, err := ticker.scheduler.eventLoop.CallHandler(ticker.handler, ticker.scheduler.runtime.ToValue(nil))
+			if err != nil {
+				current.Log(51, err.Error())
+				current.Cancel()
+			}
+			break
 		}
 	}
 
-	timer.scheduler.deleteTimer(timer.id)
-
 }
 
-type scheduler struct {
-	timers        map[int64]*timer
-	timersCounter int64
-	eventLoop     EventLoop
-	ready         sync.Mutex
-}
+// Stop ...
+func (startedTicker *StartedTicker) Stop() {
+	startedTicker.ticker.ready.Lock()
+	defer startedTicker.ticker.ready.Unlock()
 
-func (scheduler *scheduler) addTimer(handler *goja.Callable, delayMS int64) *timer {
-	scheduler.ready.Lock()
-	defer scheduler.ready.Unlock()
-
-	timer := &timer{
-		id:        scheduler.timersCounter,
-		delayMS:   delayMS,
-		scheduler: scheduler,
-		handler:   handler,
+	if !startedTicker.ticker.alreadyClosed {
+		close(startedTicker.ticker.opened)
+		startedTicker.ticker.alreadyClosed = true
 	}
-
-	scheduler.timers[timer.id] = timer
-	scheduler.timersCounter++
-	return timer
-}
-
-func (scheduler *scheduler) deleteTimer(timerID int64) error {
-	scheduler.ready.Lock()
-	defer scheduler.ready.Unlock()
-
-	if _, ok := scheduler.timers[timerID]; ok {
-		delete(scheduler.timers, timerID)
-		return nil
-	}
-
-	return fmt.Errorf("there are no timers with id=%v", timerID)
-}
-
-// Constructor ...
-func (s Scheduler) Constructor(context context.Context, eventLoop EventLoop, runtime *goja.Runtime) {
-
-	scheduler := &scheduler{
-		timers:        make(map[int64]*timer, 0),
-		timersCounter: 0,
-		eventLoop:     eventLoop,
-	}
-
-	setInterval := func(handler *goja.Callable, delayMS int64) int64 {
-
-		timer := scheduler.addTimer(handler, delayMS)
-
-		_, err := context.NewContextFor(timer, fmt.Sprintf("timer%v", timer.id), "intervalTimer")
-		if err != nil {
-			context.Log("NewContextFor", "skipping")
-			scheduler.deleteTimer(timer.id)
-			return -1
-		}
-
-		return timer.id
-	}
-
-	runtime.Set("setInterval", setInterval)
-
 }
