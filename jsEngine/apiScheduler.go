@@ -84,10 +84,7 @@ func (ticker *Ticker) Start() *StartedTicker {
 		},
 	}
 
-	_, err := ticker.scheduler.context.NewContextFor(started.ticker, "ticker", "ticker")
-	if err != nil {
-		panic(ticker.scheduler.runtime.ToValue(err.Error()))
-	}
+	ticker.scheduler.context.NewContextFor(started.ticker, "ticker", "ticker")
 
 	return started
 }
@@ -109,7 +106,7 @@ loop:
 			break
 		case <-time.After(delay):
 			delay = time.Duration(time.Duration(ticker.intervalMs) * time.Millisecond)
-			_, err := ticker.scheduler.eventLoop.CallHandler(ticker.handler, ticker.scheduler.runtime.ToValue(nil))
+			_, err := ticker.scheduler.eventLoop.CallHandler(ticker.handler)
 			if err != nil {
 				current.Log(51, err.Error())
 				current.Cancel()
@@ -121,12 +118,12 @@ loop:
 }
 
 // Stop ...
-func (startedTicker *StartedTicker) Stop() {
-	startedTicker.ticker.ready.Lock()
-	defer startedTicker.ticker.ready.Unlock()
+func (started *StartedTicker) Stop() {
+	started.ticker.ready.Lock()
+	defer started.ticker.ready.Unlock()
 
-	if !startedTicker.ticker.alreadyClosed {
-		close(startedTicker.ticker.opened)
-		startedTicker.ticker.alreadyClosed = true
+	if !started.ticker.alreadyClosed {
+		close(started.ticker.opened)
+		started.ticker.alreadyClosed = true
 	}
 }

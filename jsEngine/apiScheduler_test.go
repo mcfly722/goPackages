@@ -33,7 +33,7 @@ func Test_SetInterval(t *testing.T) {
 				Console.Log("timer"+count)
 			}
 
-    }).Start()
+    }).SetInitialSpread(10).Start()
 	`)
 
 	rootContext := context.NewRootContext(context.NewConsoleLogDebugger(100, true))
