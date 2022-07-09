@@ -26,7 +26,7 @@ func Test_ExecProcess(t *testing.T) {
 		function onStdout(content){
 				Console.Log("content="+content)
 		}
-		p = Exec.NewCommand("ping.exe", ["-n","2", "0.0.0.0"]).SetTimeoutMs(30*1000).SetOnDone(onDone).SetOnStdoutString(onStdout).SetPath('C:/Users').StartNewProcess()
+		p = Exec.NewCommand("ping.exe", ["-n","2", "0.0.0.0"]).SetTimeoutMs(30*1000).SetOnDone(onDone).SetOnStdoutString(onStdout).SetPath('C:/Users').Start()
 
 	`)
 

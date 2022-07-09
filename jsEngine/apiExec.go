@@ -102,8 +102,8 @@ func (command *Command) SetOnStdoutString(handler *goja.Callable) *Command {
 	return command
 }
 
-// StartNewProcess ...
-func (command *Command) StartNewProcess() *Process {
+// Start ...
+func (command *Command) Start() *Process {
 
 	command.ready.Lock()
 	defer command.ready.Unlock()
