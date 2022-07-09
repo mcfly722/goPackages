@@ -29,19 +29,8 @@ func (module testModule) Constructor(context context.Context, eventLoop jsEngine
 	runtime.Set("handle", handle)
 }
 
-func Test_CallHandler(t *testing.T) {
-
-	script := jsEngine.NewScript("test", `
-	function handler(param1, param2) {
-		 Console.Log('handler executed '+param1+ ','+param2)
-
-		 //someUnknownFunctionCall()
-
-		 return (param1 / param2)
-	}
-
-	handle(handler,2,3)
-	`)
+func testScript(scriptBody string, timeoutSec int) {
+	script := jsEngine.NewScript("test", scriptBody)
 
 	rootContext := context.NewRootContext(context.NewConsoleLogDebugger(100, true))
 
@@ -63,10 +52,28 @@ func Test_CallHandler(t *testing.T) {
 	}
 
 	{ // wait 1 second till exit
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Duration(timeoutSec) * time.Second)
 		rootContext.Log(2, "timeout")
 		rootContext.Cancel()
 	}
 
 	rootContext.Wait()
+}
+
+func Test_CallHandler(t *testing.T) {
+	testScript(`
+	function handler(param1, param2) {
+		 Console.Log('handler executed '+param1+ ','+param2)
+
+		 //someUnknownFunctionCall()
+
+		 return (param1 / param2)
+	}
+
+	handle(handler,2,3)
+	`, 1)
+}
+
+func Test_ScriptException(t *testing.T) {
+	testScript("console.log(123)", 1)
 }
