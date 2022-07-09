@@ -92,7 +92,7 @@ func (eventLoop *eventLoop) Go(current context.Context) {
 		_, err := eventLoop.runtime.RunString(script.getBody())
 		if err != nil {
 			current.Log(1, fmt.Sprintf("%v: %v", script.getName(), err.Error()))
-			return
+			current.Cancel()
 		}
 	}
 
